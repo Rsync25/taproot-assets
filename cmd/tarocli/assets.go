@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lightninglabs/taro/tarorpc"
+	"github.com/lightninglabs/taro/tarorpc/mintrpc"
 	"github.com/urfave/cli"
 )
 
@@ -89,7 +90,7 @@ func parseAssetType(ctx *cli.Context) tarorpc.AssetType {
 
 func mintAsset(ctx *cli.Context) error {
 	ctxc := getContext()
-	client, cleanUp := getClient(ctx)
+	client, cleanUp := getMintClient(ctx)
 	defer cleanUp()
 
 	switch {
@@ -110,7 +111,7 @@ func mintAsset(ctx *cli.Context) error {
 		}
 	}
 
-	resp, err := client.MintAsset(ctxc, &tarorpc.MintAssetRequest{
+	resp, err := client.MintAsset(ctxc, &mintrpc.MintAssetRequest{
 		AssetType:      parseAssetType(ctx),
 		Name:           ctx.String(assetTagName),
 		MetaData:       []byte(ctx.String(assetMetaName)),

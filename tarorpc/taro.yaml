@@ -3,10 +3,6 @@ config_version: 3
 
 http:
   rules:
-    - selector: tarorpc.Taro.MintAsset
-      post: "/v1/taro/assets"
-      body: "*"
-
     - selector: tarorpc.Taro.ListAssets
       get: "/v1/taro/assets"
 

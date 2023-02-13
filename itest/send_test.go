@@ -9,6 +9,7 @@ import (
 
 	"github.com/lightninglabs/taro/tarofreighter"
 	"github.com/lightninglabs/taro/tarorpc"
+	"github.com/lightninglabs/taro/tarorpc/mintrpc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,7 +71,7 @@ func testBasicSend(t *harnessTest) {
 	// First, we'll make a normal assets with enough units to allow us to
 	// send it around a few times.
 	rpcAssets := mintAssetsConfirmBatch(
-		t, t.tarod, []*tarorpc.MintAssetRequest{simpleAssets[0]},
+		t, t.tarod, []*mintrpc.MintAssetRequest{simpleAssets[0]},
 	)
 
 	genInfo := rpcAssets[0].AssetGenesis

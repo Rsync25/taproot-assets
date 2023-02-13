@@ -18,10 +18,6 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TaroClient interface {
-	// tarocli: `assets mint`
-	//MintAsset will attempts to mint the set of assets (async by default to
-	//ensure proper batching) specified in the request.
-	MintAsset(ctx context.Context, in *MintAssetRequest, opts ...grpc.CallOption) (*MintAssetResponse, error)
 	// tarocli: `assets list`
 	//ListAssets lists the set of assets owned by the target daemon.
 	ListAssets(ctx context.Context, in *ListAssetRequest, opts ...grpc.CallOption) (*ListAssetResponse, error)
@@ -93,15 +89,6 @@ type taroClient struct {
 
 func NewTaroClient(cc grpc.ClientConnInterface) TaroClient {
 	return &taroClient{cc}
-}
-
-func (c *taroClient) MintAsset(ctx context.Context, in *MintAssetRequest, opts ...grpc.CallOption) (*MintAssetResponse, error) {
-	out := new(MintAssetResponse)
-	err := c.cc.Invoke(ctx, "/tarorpc.Taro/MintAsset", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *taroClient) ListAssets(ctx context.Context, in *ListAssetRequest, opts ...grpc.CallOption) (*ListAssetResponse, error) {
@@ -275,10 +262,6 @@ func (x *taroSubscribeSendAssetEventNtfnsClient) Recv() (*SendAssetEvent, error)
 // All implementations must embed UnimplementedTaroServer
 // for forward compatibility
 type TaroServer interface {
-	// tarocli: `assets mint`
-	//MintAsset will attempts to mint the set of assets (async by default to
-	//ensure proper batching) specified in the request.
-	MintAsset(context.Context, *MintAssetRequest) (*MintAssetResponse, error)
 	// tarocli: `assets list`
 	//ListAssets lists the set of assets owned by the target daemon.
 	ListAssets(context.Context, *ListAssetRequest) (*ListAssetResponse, error)
@@ -349,9 +332,6 @@ type TaroServer interface {
 type UnimplementedTaroServer struct {
 }
 
-func (UnimplementedTaroServer) MintAsset(context.Context, *MintAssetRequest) (*MintAssetResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MintAsset not implemented")
-}
 func (UnimplementedTaroServer) ListAssets(context.Context, *ListAssetRequest) (*ListAssetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAssets not implemented")
 }
@@ -411,24 +391,6 @@ type UnsafeTaroServer interface {
 
 func RegisterTaroServer(s grpc.ServiceRegistrar, srv TaroServer) {
 	s.RegisterService(&Taro_ServiceDesc, srv)
-}
-
-func _Taro_MintAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MintAssetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TaroServer).MintAsset(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/tarorpc.Taro/MintAsset",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaroServer).MintAsset(ctx, req.(*MintAssetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _Taro_ListAssets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -729,10 +691,6 @@ var Taro_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "tarorpc.Taro",
 	HandlerType: (*TaroServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "MintAsset",
-			Handler:    _Taro_MintAsset_Handler,
-		},
 		{
 			MethodName: "ListAssets",
 			Handler:    _Taro_ListAssets_Handler,

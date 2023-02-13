@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/lightninglabs/taro/tarogarden"
 	"github.com/lightninglabs/taro/tarorpc"
+	"github.com/lightninglabs/taro/tarorpc/mintrpc"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
@@ -16,7 +17,7 @@ import (
 var (
 	zeroHash chainhash.Hash
 
-	simpleAssets = []*tarorpc.MintAssetRequest{
+	simpleAssets = []*mintrpc.MintAssetRequest{
 		{
 			AssetType: tarorpc.AssetType_NORMAL,
 			Name:      "itestbuxx",
@@ -30,7 +31,7 @@ var (
 			Amount:    1,
 		},
 	}
-	issuableAssets = []*tarorpc.MintAssetRequest{
+	issuableAssets = []*mintrpc.MintAssetRequest{
 		{
 			AssetType:      tarorpc.AssetType_NORMAL,
 			Name:           "itestbuxx-money-printer-brrr",
@@ -49,14 +50,14 @@ var (
 )
 
 // copyRequest is a helper function to copy a request so that we can modify it.
-func copyRequest(req *tarorpc.MintAssetRequest) *tarorpc.MintAssetRequest {
-	return proto.Clone(req).(*tarorpc.MintAssetRequest)
+func copyRequest(req *mintrpc.MintAssetRequest) *mintrpc.MintAssetRequest {
+	return proto.Clone(req).(*mintrpc.MintAssetRequest)
 }
 
 // copyRequests is a helper function to copy a slice of requests so that we can
 // modify them.
-func copyRequests(reqs []*tarorpc.MintAssetRequest) []*tarorpc.MintAssetRequest {
-	copied := make([]*tarorpc.MintAssetRequest, len(reqs))
+func copyRequests(reqs []*mintrpc.MintAssetRequest) []*mintrpc.MintAssetRequest {
+	copied := make([]*mintrpc.MintAssetRequest, len(reqs))
 	for idx := range reqs {
 		copied[idx] = copyRequest(reqs[idx])
 	}
@@ -97,7 +98,7 @@ func mintAssets(t *harnessTest) {
 // mintAssetsConfirmBatch mints all given assets in the same batch, confirms the
 // batch and verifies all asset proofs of the minted assets.
 func mintAssetsConfirmBatch(t *harnessTest, tarod *tarodHarness,
-	assetRequests []*tarorpc.MintAssetRequest) []*tarorpc.Asset {
+	assetRequests []*mintrpc.MintAssetRequest) []*tarorpc.Asset {
 
 	ctxb := context.Background()
 	ctxt, cancel := context.WithTimeout(ctxb, defaultWaitTimeout)
@@ -296,7 +297,7 @@ func assertAssetBalances(t *harnessTest,
 	}
 }
 
-func assertGroups(t *harnessTest, issuableAssets []*tarorpc.MintAssetRequest) {
+func assertGroups(t *harnessTest, issuableAssets []*mintrpc.MintAssetRequest) {
 	t.t.Helper()
 
 	ctxb := context.Background()
@@ -325,7 +326,7 @@ func assertGroups(t *harnessTest, issuableAssets []*tarorpc.MintAssetRequest) {
 		return groupedAssets[i].Amount > groupedAssets[j].Amount
 	})
 
-	equalityCheck := func(a *tarorpc.MintAssetRequest,
+	equalityCheck := func(a *mintrpc.MintAssetRequest,
 		b *tarorpc.AssetHumanReadable) {
 
 		require.Equal(t.t, a.AssetType, b.Type)
@@ -346,14 +347,14 @@ func testMintAssetNameCollisionError(t *harnessTest) {
 	commonAssetName := "test-asset-name"
 
 	// Define and mint a single asset.
-	assetMint := tarorpc.MintAssetRequest{
+	assetMint := mintrpc.MintAssetRequest{
 		AssetType: tarorpc.AssetType_NORMAL,
 		Name:      commonAssetName,
 		MetaData:  []byte("metadata-1"),
 		Amount:    5000,
 	}
 	rpcSimpleAssets := mintAssetsConfirmBatch(
-		t, t.tarod, []*tarorpc.MintAssetRequest{&assetMint},
+		t, t.tarod, []*mintrpc.MintAssetRequest{&assetMint},
 	)
 
 	// Ensure minted asset with requested name was successfully minted.
@@ -364,7 +365,7 @@ func testMintAssetNameCollisionError(t *harnessTest) {
 
 	// Attempt to mint another asset whose name should collide with the
 	// existing minted asset. No other fields should collide.
-	assetCollide := tarorpc.MintAssetRequest{
+	assetCollide := mintrpc.MintAssetRequest{
 		AssetType: tarorpc.AssetType_COLLECTIBLE,
 		Name:      commonAssetName,
 		MetaData:  []byte("metadata-2"),

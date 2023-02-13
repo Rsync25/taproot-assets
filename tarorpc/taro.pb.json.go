@@ -23,31 +23,6 @@ func RegisterTaroJSONCallbacks(registry map[string]func(ctx context.Context,
 		},
 	}
 
-	registry["tarorpc.Taro.MintAsset"] = func(ctx context.Context,
-		conn *grpc.ClientConn, reqJSON string, callback func(string, error)) {
-
-		req := &MintAssetRequest{}
-		err := marshaler.Unmarshal([]byte(reqJSON), req)
-		if err != nil {
-			callback("", err)
-			return
-		}
-
-		client := NewTaroClient(conn)
-		resp, err := client.MintAsset(ctx, req)
-		if err != nil {
-			callback("", err)
-			return
-		}
-
-		respBytes, err := marshaler.Marshal(resp)
-		if err != nil {
-			callback("", err)
-			return
-		}
-		callback(string(respBytes), nil)
-	}
-
 	registry["tarorpc.Taro.ListAssets"] = func(ctx context.Context,
 		conn *grpc.ClientConn, reqJSON string, callback func(string, error)) {
 

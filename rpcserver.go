@@ -27,6 +27,7 @@ import (
 	"github.com/lightninglabs/taro/taropsbt"
 	"github.com/lightninglabs/taro/tarorpc"
 	wrpc "github.com/lightninglabs/taro/tarorpc/assetwalletrpc"
+	"github.com/lightninglabs/taro/tarorpc/mintrpc"
 	"github.com/lightninglabs/taro/taroscript"
 	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/keychain"
@@ -54,10 +55,6 @@ var (
 		}},
 		"/tarorpc.Taro/DebugLevel": {{
 			Entity: "daemon",
-			Action: "write",
-		}},
-		"/tarorpc.Taro/MintAsset": {{
-			Entity: "assets",
 			Action: "write",
 		}},
 		"/tarorpc.Taro/ListAssets": {{
@@ -128,6 +125,10 @@ var (
 			Entity: "assets",
 			Action: "write",
 		}},
+		"/mintrpc.Mint/MintAsset": {{
+			Entity: "assets",
+			Action: "write",
+		}},
 	}
 )
 
@@ -139,6 +140,7 @@ type rpcServer struct {
 
 	tarorpc.UnimplementedTaroServer
 	wrpc.UnimplementedAssetWalletServer
+	mintrpc.UnimplementedMintServer
 
 	interceptor signal.Interceptor
 
@@ -205,6 +207,7 @@ func (r *rpcServer) RegisterWithGrpcServer(grpcServer *grpc.Server) error {
 	// Register the main RPC server.
 	tarorpc.RegisterTaroServer(grpcServer, r)
 	wrpc.RegisterAssetWalletServer(grpcServer, r)
+	mintrpc.RegisterMintServer(grpcServer, r)
 	return nil
 }
 
@@ -223,6 +226,13 @@ func (r *rpcServer) RegisterWithRestProxy(restCtx context.Context,
 	}
 
 	err = walletrpc.RegisterWalletKitHandlerFromEndpoint(
+		restCtx, restMux, restProxyDest, restDialOpts,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = mintrpc.RegisterMintHandlerFromEndpoint(
 		restCtx, restMux, restProxyDest, restDialOpts,
 	)
 	if err != nil {
@@ -325,7 +335,7 @@ func (r *rpcServer) DebugLevel(ctx context.Context,
 // MintAsset attempts to mint the set of assets (async by default to ensure
 // proper batching) specified in the request.
 func (r *rpcServer) MintAsset(ctx context.Context,
-	req *tarorpc.MintAssetRequest) (*tarorpc.MintAssetResponse, error) {
+	req *mintrpc.MintAssetRequest) (*mintrpc.MintAssetResponse, error) {
 
 	// Using a specific group key implies disabling emission.
 	if req.EnableEmission && len(req.GroupKey) != 0 {
@@ -373,7 +383,7 @@ func (r *rpcServer) MintAsset(ctx context.Context,
 				update.Error)
 		}
 
-		return &tarorpc.MintAssetResponse{
+		return &mintrpc.MintAssetResponse{
 			BatchKey: update.BatchKey.SerializeCompressed(),
 		}, nil
 	}

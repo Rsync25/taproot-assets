@@ -14,6 +14,7 @@ import (
 	"github.com/lightninglabs/taro/taropsbt"
 	"github.com/lightninglabs/taro/tarorpc"
 	wrpc "github.com/lightninglabs/taro/tarorpc/assetwalletrpc"
+	"github.com/lightninglabs/taro/tarorpc/mintrpc"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/keychain"
 	"github.com/lightningnetwork/lnd/lnrpc/walletrpc"
@@ -27,7 +28,7 @@ func testPsbtScriptHashLockSend(t *harnessTest) {
 	// First, we'll make a normal asset with enough units to allow us to
 	// send it around a few times.
 	rpcAssets := mintAssetsConfirmBatch(
-		t, t.tarod, []*tarorpc.MintAssetRequest{simpleAssets[0]},
+		t, t.tarod, []*mintrpc.MintAssetRequest{simpleAssets[0]},
 	)
 
 	genInfo := rpcAssets[0].AssetGenesis
@@ -171,7 +172,7 @@ func testPsbtScriptCheckSigSend(t *harnessTest) {
 	// First, we'll make a normal asset with enough units to allow us to
 	// send it around a few times.
 	rpcAssets := mintAssetsConfirmBatch(
-		t, t.tarod, []*tarorpc.MintAssetRequest{simpleAssets[0]},
+		t, t.tarod, []*mintrpc.MintAssetRequest{simpleAssets[0]},
 	)
 
 	genInfo := rpcAssets[0].AssetGenesis
@@ -318,7 +319,7 @@ func testPsbtInteractiveFullValueSend(t *harnessTest) {
 	// First, we'll make a normal asset with enough units to allow us to
 	// send it around a few times.
 	rpcAssets := mintAssetsConfirmBatch(
-		t, t.tarod, []*tarorpc.MintAssetRequest{simpleAssets[0]},
+		t, t.tarod, []*mintrpc.MintAssetRequest{simpleAssets[0]},
 	)
 
 	genInfo := rpcAssets[0].AssetGenesis
