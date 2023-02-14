@@ -48,6 +48,38 @@
           "Mint"
         ]
       }
+    },
+    "/v1/taro/mint/batch/pause": {
+      "post": {
+        "operationId": "Mint_PauseAutoBatch",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/mintrpcPauseAutoBatchResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/mintrpcPauseAutoBatchRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Mint"
+        ]
+      }
     }
   },
   "definitions": {
@@ -96,6 +128,12 @@
           "description": "A public key serialized in compressed format that can be used to uniquely\nidentify a pending minting batch. Responses that share the same key will be\nbatched into the same minting transaction."
         }
       }
+    },
+    "mintrpcPauseAutoBatchRequest": {
+      "type": "object"
+    },
+    "mintrpcPauseAutoBatchResponse": {
+      "type": "object"
     },
     "protobufAny": {
       "type": "object",

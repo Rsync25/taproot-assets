@@ -129,6 +129,10 @@ var (
 			Entity: "assets",
 			Action: "write",
 		}},
+		"/mintrpc.Mint/PauseAutoBatch": {{
+			Entity: "assets",
+			Action: "write",
+		}},
 	}
 )
 
@@ -1395,6 +1399,15 @@ func (r *rpcServer) SendAsset(ctx context.Context,
 	}
 
 	return marshalPendingParcel(resp)
+}
+
+func (r *rpcServer) PauseAutoBatch(ctx context.Context,
+	in *mintrpc.PauseAutoBatchRequest) (*mintrpc.PauseAutoBatchResponse,
+	error) {
+
+	r.cfg.AssetMinter.PauseAutoBatch()
+
+	return &mintrpc.PauseAutoBatchResponse{}, nil
 }
 
 // marshalPendingParcel turns a pending parcel into its RPC counterpart.

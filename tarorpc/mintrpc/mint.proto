@@ -12,6 +12,8 @@ service Mint {
     ensure proper batching) specified in the request.
     */
     rpc MintAsset (MintAssetRequest) returns (MintAssetResponse);
+
+    rpc PauseAutoBatch (PauseAutoBatchRequest) returns (PauseAutoBatchResponse);
 }
 
 message MintAssetRequest {
@@ -58,4 +60,10 @@ message MintAssetResponse {
     batched into the same minting transaction.
     */
     bytes batch_key = 1;
+}
+
+message PauseAutoBatchRequest {
+}
+
+message PauseAutoBatchResponse {
 }

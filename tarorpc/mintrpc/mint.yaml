@@ -6,3 +6,7 @@ http:
     - selector: mintrpc.Mint.MintAsset
       post: "/v1/taro/assets"
       body: "*"
+
+    - selector: mintrpc.Mint.PauseAutoBatch
+      post: "/v1/taro/mint/batch/pause"
+      body: "*"
