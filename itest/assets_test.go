@@ -19,31 +19,39 @@ var (
 
 	simpleAssets = []*mintrpc.MintAssetRequest{
 		{
-			AssetType: tarorpc.AssetType_NORMAL,
-			Name:      "itestbuxx",
-			MetaData:  []byte("some metadata for the itest assets"),
-			Amount:    5000,
+			Asset: &mintrpc.MintAsset{
+				AssetType: tarorpc.AssetType_NORMAL,
+				Name:      "itestbuxx",
+				MetaData:  []byte("metadata for itest assets"),
+				Amount:    5000,
+			},
 		},
 		{
-			AssetType: tarorpc.AssetType_COLLECTIBLE,
-			Name:      "itestbuxx-collectible",
-			MetaData:  []byte("some metadata for the itest assets"),
-			Amount:    1,
+			Asset: &mintrpc.MintAsset{
+				AssetType: tarorpc.AssetType_COLLECTIBLE,
+				Name:      "itestbuxx-collectible",
+				MetaData:  []byte("metadata for itest assets"),
+				Amount:    1,
+			},
 		},
 	}
 	issuableAssets = []*mintrpc.MintAssetRequest{
 		{
-			AssetType:      tarorpc.AssetType_NORMAL,
-			Name:           "itestbuxx-money-printer-brrr",
-			MetaData:       []byte("some metadata"),
-			Amount:         5000,
+			Asset: &mintrpc.MintAsset{
+				AssetType: tarorpc.AssetType_NORMAL,
+				Name:      "itestbuxx-money-printer-brrr",
+				MetaData:  []byte("some metadata"),
+				Amount:    5000,
+			},
 			EnableEmission: true,
 		},
 		{
-			AssetType:      tarorpc.AssetType_COLLECTIBLE,
-			Name:           "itestbuxx-collectible-brrr",
-			MetaData:       []byte("some metadata"),
-			Amount:         1,
+			Asset: &mintrpc.MintAsset{
+				AssetType: tarorpc.AssetType_COLLECTIBLE,
+				Name:      "itestbuxx-collectible-brrr",
+				MetaData:  []byte("some metadata"),
+				Amount:    1,
+			},
 			EnableEmission: true,
 		},
 	}
@@ -127,9 +135,10 @@ func mintAssetsConfirmBatch(t *harnessTest, tarod *tarodHarness,
 	// yet have a block hash associated with them.
 	for _, assetRequest := range assetRequests {
 		assertAssetState(
-			t, tarod, assetRequest.Name, assetRequest.MetaData,
-			assetAmountCheck(assetRequest.Amount),
-			assetTypeCheck(assetRequest.AssetType),
+			t, tarod, assetRequest.Asset.Name,
+			assetRequest.Asset.MetaData,
+			assetAmountCheck(assetRequest.Asset.Amount),
+			assetTypeCheck(assetRequest.Asset.AssetType),
 			assetAnchorCheck(*hashes[0], zeroHash),
 		)
 	}
@@ -147,7 +156,8 @@ func mintAssetsConfirmBatch(t *harnessTest, tarod *tarodHarness,
 	)
 	for _, assetRequest := range assetRequests {
 		mintedAsset := assertAssetState(
-			t, tarod, assetRequest.Name, assetRequest.MetaData,
+			t, tarod, assetRequest.Asset.Name,
+			assetRequest.Asset.MetaData,
 			assetAnchorCheck(*hashes[0], blockHash),
 			func(a *tarorpc.Asset) error {
 				anchor := a.ChainAnchor
@@ -329,10 +339,10 @@ func assertGroups(t *harnessTest, issuableAssets []*mintrpc.MintAssetRequest) {
 	equalityCheck := func(a *mintrpc.MintAssetRequest,
 		b *tarorpc.AssetHumanReadable) {
 
-		require.Equal(t.t, a.AssetType, b.Type)
-		require.Equal(t.t, a.Name, b.Tag)
-		require.Equal(t.t, a.MetaData, b.MetaData)
-		require.Equal(t.t, a.Amount, int64(b.Amount))
+		require.Equal(t.t, a.Asset.AssetType, b.Type)
+		require.Equal(t.t, a.Asset.Name, b.Tag)
+		require.Equal(t.t, a.Asset.MetaData, b.MetaData)
+		require.Equal(t.t, a.Asset.Amount, int64(b.Amount))
 	}
 
 	equalityCheck(issuableAssets[0], groupedAssets[0])
@@ -348,10 +358,12 @@ func testMintAssetNameCollisionError(t *harnessTest) {
 
 	// Define and mint a single asset.
 	assetMint := mintrpc.MintAssetRequest{
-		AssetType: tarorpc.AssetType_NORMAL,
-		Name:      commonAssetName,
-		MetaData:  []byte("metadata-1"),
-		Amount:    5000,
+		Asset: &mintrpc.MintAsset{
+			AssetType: tarorpc.AssetType_NORMAL,
+			Name:      commonAssetName,
+			MetaData:  []byte("metadata-1"),
+			Amount:    5000,
+		},
 	}
 	rpcSimpleAssets := mintAssetsConfirmBatch(
 		t, t.tarod, []*mintrpc.MintAssetRequest{&assetMint},
@@ -366,10 +378,12 @@ func testMintAssetNameCollisionError(t *harnessTest) {
 	// Attempt to mint another asset whose name should collide with the
 	// existing minted asset. No other fields should collide.
 	assetCollide := mintrpc.MintAssetRequest{
-		AssetType: tarorpc.AssetType_COLLECTIBLE,
-		Name:      commonAssetName,
-		MetaData:  []byte("metadata-2"),
-		Amount:    1,
+		Asset: &mintrpc.MintAsset{
+			AssetType: tarorpc.AssetType_COLLECTIBLE,
+			Name:      commonAssetName,
+			MetaData:  []byte("metadata-2"),
+			Amount:    1,
+		},
 	}
 
 	ctxb := context.Background()

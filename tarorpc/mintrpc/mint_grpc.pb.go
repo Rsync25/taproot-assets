@@ -22,6 +22,7 @@ type MintClient interface {
 	//MintAsset will attempts to mint the set of assets (async by default to
 	//ensure proper batching) specified in the request.
 	MintAsset(ctx context.Context, in *MintAssetRequest, opts ...grpc.CallOption) (*MintAssetResponse, error)
+	MintingBatch(ctx context.Context, in *MintingBatchRequest, opts ...grpc.CallOption) (*MintingBatchResponse, error)
 	PauseAutoBatch(ctx context.Context, in *PauseAutoBatchRequest, opts ...grpc.CallOption) (*PauseAutoBatchResponse, error)
 }
 
@@ -36,6 +37,15 @@ func NewMintClient(cc grpc.ClientConnInterface) MintClient {
 func (c *mintClient) MintAsset(ctx context.Context, in *MintAssetRequest, opts ...grpc.CallOption) (*MintAssetResponse, error) {
 	out := new(MintAssetResponse)
 	err := c.cc.Invoke(ctx, "/mintrpc.Mint/MintAsset", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mintClient) MintingBatch(ctx context.Context, in *MintingBatchRequest, opts ...grpc.CallOption) (*MintingBatchResponse, error) {
+	out := new(MintingBatchResponse)
+	err := c.cc.Invoke(ctx, "/mintrpc.Mint/MintingBatch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +69,7 @@ type MintServer interface {
 	//MintAsset will attempts to mint the set of assets (async by default to
 	//ensure proper batching) specified in the request.
 	MintAsset(context.Context, *MintAssetRequest) (*MintAssetResponse, error)
+	MintingBatch(context.Context, *MintingBatchRequest) (*MintingBatchResponse, error)
 	PauseAutoBatch(context.Context, *PauseAutoBatchRequest) (*PauseAutoBatchResponse, error)
 	mustEmbedUnimplementedMintServer()
 }
@@ -69,6 +80,9 @@ type UnimplementedMintServer struct {
 
 func (UnimplementedMintServer) MintAsset(context.Context, *MintAssetRequest) (*MintAssetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MintAsset not implemented")
+}
+func (UnimplementedMintServer) MintingBatch(context.Context, *MintingBatchRequest) (*MintingBatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MintingBatch not implemented")
 }
 func (UnimplementedMintServer) PauseAutoBatch(context.Context, *PauseAutoBatchRequest) (*PauseAutoBatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PauseAutoBatch not implemented")
@@ -104,6 +118,24 @@ func _Mint_MintAsset_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Mint_MintingBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MintingBatchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MintServer).MintingBatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mintrpc.Mint/MintingBatch",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MintServer).MintingBatch(ctx, req.(*MintingBatchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Mint_PauseAutoBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PauseAutoBatchRequest)
 	if err := dec(in); err != nil {
@@ -132,6 +164,10 @@ var Mint_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MintAsset",
 			Handler:    _Mint_MintAsset_Handler,
+		},
+		{
+			MethodName: "MintingBatch",
+			Handler:    _Mint_MintingBatch_Handler,
 		},
 		{
 			MethodName: "PauseAutoBatch",

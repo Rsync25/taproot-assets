@@ -91,7 +91,7 @@ func testBasicSend(t *harnessTest) {
 
 	// Next, we'll attempt to complete two transfers with distinct
 	// addresses from our main node to Bob.
-	currentUnits := simpleAssets[0].Amount
+	currentUnits := simpleAssets[0].Asset.Amount
 
 	for i := 0; i < numSends; i++ {
 		bobAddr, err := secondTarod.NewAddr(
@@ -190,7 +190,7 @@ func testReattemptFailedAssetSend(t *harnessTest) {
 
 	// Mint an asset for sending.
 	rpcAssets := mintAssetsConfirmBatch(
-		t, sendTarod, []*tarorpc.MintAssetRequest{simpleAssets[0]},
+		t, sendTarod, []*mintrpc.MintAssetRequest{simpleAssets[0]},
 	)
 
 	genInfo := rpcAssets[0].AssetGenesis

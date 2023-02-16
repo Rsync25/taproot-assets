@@ -112,11 +112,13 @@ func mintAsset(ctx *cli.Context) error {
 	}
 
 	resp, err := client.MintAsset(ctxc, &mintrpc.MintAssetRequest{
-		AssetType:      parseAssetType(ctx),
-		Name:           ctx.String(assetTagName),
-		MetaData:       []byte(ctx.String(assetMetaName)),
-		Amount:         ctx.Int64(assetSupplyName),
-		GroupKey:       groupKey,
+		Asset: &mintrpc.MintAsset{
+			AssetType: parseAssetType(ctx),
+			Name:      ctx.String(assetTagName),
+			MetaData:  []byte(ctx.String(assetMetaName)),
+			Amount:    ctx.Int64(assetSupplyName),
+			GroupKey:  groupKey,
+		},
 		EnableEmission: ctx.Bool(assetEmissionName),
 		SkipBatch:      ctx.Bool(skipBatchName),
 	})

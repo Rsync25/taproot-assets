@@ -83,7 +83,7 @@
     }
   },
   "definitions": {
-    "mintrpcMintAssetRequest": {
+    "mintrpcMintAsset": {
       "type": "object",
       "properties": {
         "asset_type": {
@@ -108,6 +108,15 @@
           "type": "string",
           "format": "byte",
           "description": "The specific group key this asset should be minted with."
+        }
+      }
+    },
+    "mintrpcMintAssetRequest": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "$ref": "#/definitions/mintrpcMintAsset",
+          "description": "The asset to be minted."
         },
         "enable_emission": {
           "type": "boolean",
@@ -126,6 +135,21 @@
           "type": "string",
           "format": "byte",
           "description": "A public key serialized in compressed format that can be used to uniquely\nidentify a pending minting batch. Responses that share the same key will be\nbatched into the same minting transaction."
+        }
+      }
+    },
+    "mintrpcMintingBatchResponse": {
+      "type": "object",
+      "properties": {
+        "assets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/mintrpcMintAsset"
+          }
+        },
+        "taro_root_key": {
+          "type": "string",
+          "format": "byte"
         }
       }
     },

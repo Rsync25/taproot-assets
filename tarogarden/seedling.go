@@ -38,12 +38,12 @@ const (
 	// batch and now has a corresponding asset associated with it.
 	MintingStateSeedling
 
-	// MintingStateSeedling denotes that a seedling has been paired with a
+	// MintingStateSprout denotes that a seedling has been paired with a
 	// genesis transaction and broadcast for confirmation.
 	MintingStateSprout
 
 	// MintingStateAdult denotes that a seedling has been confirmed on
-	// chain and reached full adult hood.
+	// chain and reached full adulthood.
 	MintingStateAdult
 )
 

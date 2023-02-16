@@ -13,10 +13,12 @@ service Mint {
     */
     rpc MintAsset (MintAssetRequest) returns (MintAssetResponse);
 
+    rpc MintingBatch (MintingBatchRequest) returns (MintingBatchResponse);
+
     rpc PauseAutoBatch (PauseAutoBatchRequest) returns (PauseAutoBatchResponse);
 }
 
-message MintAssetRequest {
+message MintAsset {
     // The type of the asset to be created.
     tarorpc.AssetType asset_type = 1;
 
@@ -39,6 +41,11 @@ message MintAssetRequest {
     The specific group key this asset should be minted with.
     */
     bytes group_key = 5;
+}
+
+message MintAssetRequest {
+    // The asset to be minted.
+    MintAsset asset = 1;
 
     /*
     If true, then the asset will be created with a key group, which allows for
@@ -60,6 +67,21 @@ message MintAssetResponse {
     batched into the same minting transaction.
     */
     bytes batch_key = 1;
+}
+
+message MintingBatchRequest {
+    /*
+    A public key serialized in compressed format that can be used to uniquely
+    identify a pending minting batch. Responses that share the same key will be
+    batched into the same minting transaction.
+    */
+    bytes batch_key = 1;
+}
+
+message MintingBatchResponse {
+    repeated MintAsset assets = 1;
+
+    bytes taro_root_key = 2;
 }
 
 message PauseAutoBatchRequest {
