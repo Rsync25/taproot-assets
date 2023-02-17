@@ -43,7 +43,7 @@ func testPsbtScriptHashLockSend(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	var (
@@ -187,7 +187,7 @@ func testPsbtScriptCheckSigSend(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	var (
@@ -334,7 +334,7 @@ func testPsbtInteractiveFullValueSend(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	var (

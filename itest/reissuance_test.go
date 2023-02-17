@@ -46,7 +46,7 @@ func testReissuance(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	// Send the minted collectible to the second node so that it imports
@@ -254,7 +254,7 @@ func testMintWithGroupKeyErrors(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	// The node must have information on the group to reissue, so this

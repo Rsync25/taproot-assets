@@ -105,7 +105,7 @@ func mintAssets(t *harnessTest) {
 
 // mintAssetsConfirmBatch mints all given assets in the same batch, confirms the
 // batch and verifies all asset proofs of the minted assets.
-func mintAssetsConfirmBatch(t *harnessTest, tarod *tarodHarness,
+func mintAssetsConfirmBatch(t *harnessTest, tarod *TarodHarness,
 	assetRequests []*mintrpc.MintAssetRequest) []*tarorpc.Asset {
 
 	ctxb := context.Background()
@@ -192,7 +192,7 @@ func mintAssetsConfirmBatch(t *harnessTest, tarod *tarodHarness,
 
 // transferAssetProofs locates and exports the proof files for all given assets
 // from the source node and imports them into the destination node.
-func transferAssetProofs(t *harnessTest, src, dst *tarodHarness,
+func transferAssetProofs(t *harnessTest, src, dst *TarodHarness,
 	assets []*tarorpc.Asset) {
 
 	ctxb := context.Background()

@@ -91,7 +91,7 @@ type harnessTest struct {
 
 	universeServer *serverHarness
 
-	tarod *tarodHarness
+	tarod *TarodHarness
 
 	logWriter *build.RotatingLogWriter
 
@@ -101,7 +101,7 @@ type harnessTest struct {
 // newHarnessTest creates a new instance of a harnessTest from a regular
 // testing.T instance.
 func (h *harnessTest) newHarnessTest(t *testing.T, net *lntest.NetworkHarness,
-	universeServer *serverHarness, tarod *tarodHarness) *harnessTest {
+	universeServer *serverHarness, tarod *TarodHarness) *harnessTest {
 
 	return &harnessTest{
 		t:               t,
@@ -168,7 +168,7 @@ func (h *harnessTest) Log(args ...interface{}) {
 // shutdown stops both the mock universe and tarod server.
 func (h *harnessTest) shutdown(t *testing.T) error {
 	h.universeServer.stop()
-	return h.tarod.stop(!*noDelete)
+	return h.tarod.Stop(!*noDelete)
 }
 
 // setupLogging initializes the logging subsystem for the server and client
@@ -227,7 +227,7 @@ func nextAvailablePort() int {
 // to each other through an in-memory gRPC connection.
 func setupHarnesses(t *testing.T, ht *harnessTest,
 	lndHarness *lntest.NetworkHarness,
-	enableHashMail bool) (*tarodHarness, *serverHarness) {
+	enableHashMail bool) (*TarodHarness, *serverHarness) {
 
 	mockServerAddr := fmt.Sprintf(
 		lntest.ListenerFormat, lntest.NextAvailablePort(),
@@ -247,7 +247,7 @@ func setupHarnesses(t *testing.T, ht *harnessTest,
 }
 
 // tarodHarnessParams contains parameters that can be set when creating a new
-// tarodHarness.
+// TarodHarness.
 type tarodHarnessParams struct {
 	// enableHashMail enables hashmail in the taro daemon.
 	enableHashMail bool
@@ -263,7 +263,7 @@ type Option func(*tarodHarnessParams)
 // and to the given universe server.
 func setupTarodHarness(t *testing.T, ht *harnessTest,
 	backend lntest.BackendConfig, node *lntest.HarnessNode,
-	universe *serverHarness, opts ...Option) *tarodHarness {
+	universe *serverHarness, opts ...Option) *TarodHarness {
 
 	// Set parameters by executing option functions.
 	params := &tarodHarnessParams{}
@@ -271,14 +271,19 @@ func setupTarodHarness(t *testing.T, ht *harnessTest,
 		opt(params)
 	}
 
-	tarodHarness, err := newTarodHarness(ht, tarodConfig{
-		NetParams: harnessNetParams,
-		LndNode:   node,
-	}, params.enableHashMail)
+	tarodHarness, err := NewTarodHarness(t, TarodConfig{
+		LndNode:             node,
+		NetParams:           harnessNetParams,
+		Interceptor:         ht.interceptor,
+		LogWriter:           ht.logWriter,
+		EnableHashMail:      params.enableHashMail,
+		HashMailAddr:        ht.apertureHarness.ListenAddr,
+		HashMailTlsCertPath: ht.apertureHarness.TlsCertPath,
+	})
 	require.NoError(t, err)
 
 	// Start the tarod harness now.
-	err = tarodHarness.start(params.expectErrExit)
+	err = tarodHarness.Start(params.expectErrExit)
 	require.NoError(t, err)
 	return tarodHarness
 }
@@ -404,10 +409,10 @@ func mineBlocks(t *harnessTest, net *lntest.NetworkHarness,
 // shutdownAndAssert shuts down the given node and asserts that no errors
 // occur.
 func shutdownAndAssert(t *harnessTest, node *lntest.HarnessNode,
-	tarod *tarodHarness) {
+	tarod *TarodHarness) {
 
 	if tarod != nil {
-		require.NoError(t.t, tarod.stop(!*noDelete))
+		require.NoError(t.t, tarod.Stop(!*noDelete))
 	}
 
 	require.NoError(t.t, t.lndHarness.ShutdownNode(node))

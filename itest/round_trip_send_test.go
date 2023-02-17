@@ -30,7 +30,7 @@ func testRoundTripSend(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	// We'll send half of the minted units to Bob, and then have Bob return

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg"
@@ -17,10 +18,12 @@ import (
 	"github.com/lightninglabs/taro/tarorpc"
 	"github.com/lightninglabs/taro/tarorpc/assetwalletrpc"
 	"github.com/lightninglabs/taro/tarorpc/mintrpc"
+	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntest"
 	"github.com/lightningnetwork/lnd/lntest/wait"
 	"github.com/lightningnetwork/lnd/macaroons"
+	"github.com/lightningnetwork/lnd/signal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials"
@@ -34,14 +37,14 @@ var (
 		"backend to use when starting a taro daemon.")
 )
 
-// tarodHarness is a test harness that holds everything that is needed to
+// TarodHarness is a test harness that holds everything that is needed to
 // start an instance of the tarod server.
-type tarodHarness struct {
-	cfg       *tarodConfig
+type TarodHarness struct {
+	cfg       *TarodConfig
 	server    *taro.Server
 	clientCfg *tarocfg.Config
 
-	ht *harnessTest
+	t  *testing.T
 	wg sync.WaitGroup
 
 	tarorpc.TaroClient
@@ -49,19 +52,23 @@ type tarodHarness struct {
 	mintrpc.MintClient
 }
 
-// tarodConfig holds all configuration items that are required to start a tarod
+// TarodConfig holds all configuration items that are required to start a tarod
 // server.
-type tarodConfig struct {
-	LndNode   *lntest.HarnessNode
-	NetParams *chaincfg.Params
-	BaseDir   string
+type TarodConfig struct {
+	LndNode     *lntest.HarnessNode
+	NetParams   *chaincfg.Params
+	BaseDir     string
+	Interceptor signal.Interceptor
+	LogWriter   *build.RotatingLogWriter
+
+	EnableHashMail      bool
+	HashMailAddr        string
+	HashMailTlsCertPath string
 }
 
-// newTarodHarness creates a new tarod server harness with the given
+// NewTarodHarness creates a new tarod server harness with the given
 // configuration.
-func newTarodHarness(ht *harnessTest, cfg tarodConfig,
-	enableHashMail bool) (*tarodHarness, error) {
-
+func NewTarodHarness(t *testing.T, cfg TarodConfig) (*TarodHarness, error) {
 	if cfg.BaseDir == "" {
 		var err error
 		cfg.BaseDir, err = os.MkdirTemp("", "itest-tarod")
@@ -94,10 +101,10 @@ func newTarodHarness(ht *harnessTest, cfg tarodConfig,
 
 	case tarocfg.DatabaseBackendPostgres:
 		fixture := tarodb.NewTestPgFixture(
-			ht.t, tarodb.DefaultPostgresFixtureLifetime,
+			t, tarodb.DefaultPostgresFixtureLifetime,
 		)
-		ht.t.Cleanup(func() {
-			fixture.TearDown(ht.t)
+		t.Cleanup(func() {
+			fixture.TearDown(t)
 		})
 		tarodCfg.DatabaseBackend = tarocfg.DatabaseBackendPostgres
 		tarodCfg.Postgres = fixture.GetConfig()
@@ -116,17 +123,17 @@ func newTarodHarness(ht *harnessTest, cfg tarodConfig,
 		TLSPath:      cfg.LndNode.Cfg.TLSCertPath,
 	}
 
-	finalCfg, _, err := tarocfg.ValidateConfig(tarodCfg, ht.interceptor)
+	finalCfg, _, err := tarocfg.ValidateConfig(tarodCfg, cfg.Interceptor)
 	if err != nil {
 		return nil, err
 	}
 
 	// Conditionally use the local hashmail service.
 	finalCfg.HashMailCourier = nil
-	if enableHashMail {
+	if cfg.EnableHashMail {
 		finalCfg.HashMailCourier = &proof.HashMailCourierCfg{
-			Addr:               ht.apertureHarness.ListenAddr,
-			TlsCertPath:        ht.apertureHarness.TlsCertPath,
+			Addr:               cfg.HashMailAddr,
+			TlsCertPath:        cfg.HashMailTlsCertPath,
 			ReceiverAckTimeout: 5 * time.Second,
 
 			// Use minimal wait times for asset proof transfer
@@ -140,23 +147,23 @@ func newTarodHarness(ht *harnessTest, cfg tarodConfig,
 		}
 	}
 
-	return &tarodHarness{
+	return &TarodHarness{
 		cfg:       &cfg,
 		clientCfg: finalCfg,
-		ht:        ht,
+		t:         t,
 	}, nil
 }
 
-// start spins up the tarod server listening for gRPC connections.
-func (hs *tarodHarness) start(expectErrExit bool) error {
-	cfgLogger := hs.ht.logWriter.GenSubLogger("CONF", func() {})
+// Start spins up the tarod server listening for gRPC connections.
+func (hs *TarodHarness) Start(expectErrExit bool) error {
+	cfgLogger := hs.cfg.LogWriter.GenSubLogger("CONF", func() {})
 
 	var (
 		err         error
 		mainErrChan = make(chan error, 10)
 	)
 	hs.server, err = tarocfg.CreateServerFromConfig(
-		hs.clientCfg, cfgLogger, hs.ht.interceptor, mainErrChan,
+		hs.clientCfg, cfgLogger, hs.cfg.Interceptor, mainErrChan,
 	)
 	if err != nil {
 		return fmt.Errorf("could not create tarod server: %v", err)
@@ -166,7 +173,7 @@ func (hs *tarodHarness) start(expectErrExit bool) error {
 	go func() {
 		err := hs.server.RunUntilShutdown(mainErrChan)
 		if err != nil && !expectErrExit {
-			hs.ht.Fatalf("Error running server: %v", err)
+			hs.t.Fatalf("Error running server: %v", err)
 		}
 	}()
 
@@ -189,8 +196,8 @@ func (hs *tarodHarness) start(expectErrExit bool) error {
 	return nil
 }
 
-// stop shuts down the tarod server and deletes its temporary data directory.
-func (hs *tarodHarness) stop(deleteData bool) error {
+// Stop shuts down the tarod server and deletes its temporary data directory.
+func (hs *TarodHarness) Stop(deleteData bool) error {
 	// Don't return the error immediately if stopping goes wrong, always
 	// remove the temp directory.
 	err := hs.server.Stop()

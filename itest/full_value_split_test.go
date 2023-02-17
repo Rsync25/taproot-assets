@@ -29,7 +29,7 @@ func testFullValueSend(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	// Next, we'll attempt to complete three transfers of the full value of

@@ -77,7 +77,7 @@ func assetAnchorCheck(txid, blockHash chainhash.Hash) assetCheck {
 // assertAssetState makes sure that an asset with the given (possibly
 // non-unique!) name exists in the list of assets and then performs the given
 // additional checks on that asset.
-func assertAssetState(t *harnessTest, tarod *tarodHarness, name string,
+func assertAssetState(t *harnessTest, tarod *TarodHarness, name string,
 	meta []byte, assetChecks ...assetCheck) *tarorpc.Asset {
 
 	t.t.Helper()
@@ -151,7 +151,7 @@ func commitmentKey(t *testing.T, rpcAsset *tarorpc.Asset) [32]byte {
 
 // assertAssetProofs makes sure the proofs for the given asset can be retrieved
 // from the given daemon and can be fully validated.
-func assertAssetProofs(t *testing.T, tarod *tarodHarness,
+func assertAssetProofs(t *testing.T, tarod *TarodHarness,
 	a *tarorpc.Asset) []byte {
 
 	t.Helper()
@@ -183,7 +183,7 @@ func assertAssetProofs(t *testing.T, tarod *tarodHarness,
 
 // verifyProofBlob parses the given proof blob into a file, verifies it and
 // returns the resulting last asset snapshot together with the parsed file.
-func verifyProofBlob(t *testing.T, tarod *tarodHarness,
+func verifyProofBlob(t *testing.T, tarod *TarodHarness,
 	blob proof.Blob) (*proof.File, *proof.AssetSnapshot) {
 
 	ctxb := context.Background()
@@ -216,7 +216,7 @@ func verifyProofBlob(t *testing.T, tarod *tarodHarness,
 
 // assertAddrCreated makes sure an address was created correctly for the given
 // asset.
-func assertAddrCreated(t *testing.T, tarod *tarodHarness,
+func assertAddrCreated(t *testing.T, tarod *TarodHarness,
 	expected *tarorpc.Asset, actual *tarorpc.Addr) {
 
 	// Was the address created correctly?
@@ -259,7 +259,7 @@ func assertAddrCreated(t *testing.T, tarod *tarodHarness,
 // confirmAndAssertOutboundTransfer makes sure the given outbound transfer has
 // the correct state before confirming it and then asserting the confirmed state
 // with the node.
-func confirmAndAssertOutboundTransfer(t *harnessTest, sender *tarodHarness,
+func confirmAndAssertOutboundTransfer(t *harnessTest, sender *TarodHarness,
 	sendResp *tarorpc.SendAssetResponse, assetID []byte,
 	expectedAmount int64, currentTransferIdx, numTransfers int) {
 
@@ -273,7 +273,7 @@ func confirmAndAssertOutboundTransfer(t *harnessTest, sender *tarodHarness,
 // transfer has the correct state and number of outputs before confirming it and
 // then asserting the confirmed state with the node.
 func confirmAndAssetOutboundTransferWithOutputs(t *harnessTest,
-	sender *tarodHarness, sendResp *tarorpc.SendAssetResponse,
+	sender *TarodHarness, sendResp *tarorpc.SendAssetResponse,
 	assetID []byte, expectedAmount int64, currentTransferIdx, numTransfers,
 	numOutputs int) {
 
@@ -343,7 +343,7 @@ func confirmAndAssetOutboundTransferWithOutputs(t *harnessTest,
 
 // assertReceiveComplete makes sure the given receiver has the correct number of
 // completed inbound asset transfers in their list of events.
-func assertReceiveComplete(t *harnessTest, receiver *tarodHarness,
+func assertReceiveComplete(t *harnessTest, receiver *TarodHarness,
 	totalInboundTransfers int) {
 
 	ctxb := context.Background()
@@ -399,7 +399,7 @@ func assertAddr(t *testing.T, expected *tarorpc.Asset, actual *tarorpc.Addr) {
 
 // assertBalanceByID asserts that the balance of a single asset,
 // specified by ID, on the given daemon is correct.
-func assertBalanceByID(t *testing.T, tarod *tarodHarness, id []byte,
+func assertBalanceByID(t *testing.T, tarod *TarodHarness, id []byte,
 	amt int64) {
 
 	ctxb := context.Background()
@@ -420,7 +420,7 @@ func assertBalanceByID(t *testing.T, tarod *tarodHarness, id []byte,
 
 // assertBalanceByGroup asserts that the balance of a single asset group
 // on the given daemon is correct.
-func assertBalanceByGroup(t *testing.T, tarod *tarodHarness, groupKey []byte,
+func assertBalanceByGroup(t *testing.T, tarod *TarodHarness, groupKey []byte,
 	amt int64) {
 
 	ctxb := context.Background()
@@ -442,7 +442,7 @@ func assertBalanceByGroup(t *testing.T, tarod *tarodHarness, groupKey []byte,
 
 // assertTransfers asserts that the value of each transfer initiated on the
 // given daemon is correct.
-func assertTransfers(t *testing.T, tarod *tarodHarness, amts []int64) {
+func assertTransfers(t *testing.T, tarod *TarodHarness, amts []int64) {
 	ctxb := context.Background()
 	transferResp, err := tarod.ListTransfers(
 		ctxb, &tarorpc.ListTransfersRequest{},
@@ -459,7 +459,7 @@ func assertTransfers(t *testing.T, tarod *tarodHarness, amts []int64) {
 
 // assertNumGroups asserts that the number of groups the daemon is aware of
 // is correct.
-func assertNumGroups(t *testing.T, tarod *tarodHarness, num int) {
+func assertNumGroups(t *testing.T, tarod *TarodHarness, num int) {
 	ctxb := context.Background()
 	groupResp, err := tarod.ListGroups(
 		ctxb, &tarorpc.ListGroupsRequest{},

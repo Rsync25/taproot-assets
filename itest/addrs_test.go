@@ -42,7 +42,7 @@ func testAddresses(t *harnessTest) {
 		t.universeServer,
 	)
 	defer func() {
-		require.NoError(t.t, secondTarod.stop(true))
+		require.NoError(t.t, secondTarod.Stop(true))
 	}()
 
 	var (
@@ -161,7 +161,7 @@ func testAddresses(t *harnessTest) {
 	require.NoError(t.t, err)
 }
 
-func sendProof(t *harnessTest, src, dst *tarodHarness, scriptKey []byte,
+func sendProof(t *harnessTest, src, dst *TarodHarness, scriptKey []byte,
 	genInfo *tarorpc.GenesisInfo) *tarorpc.ImportProofResponse {
 
 	ctxb := context.Background()
@@ -194,7 +194,7 @@ func sendProof(t *harnessTest, src, dst *tarodHarness, scriptKey []byte,
 
 // sendAssetsToAddr spends the given input asset and sends the amount specified
 // in the address to the Taproot output derived from the address.
-func sendAssetsToAddr(t *harnessTest, sender *tarodHarness,
+func sendAssetsToAddr(t *harnessTest, sender *TarodHarness,
 	receiverAddr *tarorpc.Addr) *tarorpc.SendAssetResponse {
 
 	ctxb := context.Background()
@@ -211,7 +211,7 @@ func sendAssetsToAddr(t *harnessTest, sender *tarodHarness,
 
 // fundAddressSendPacket asks the wallet to fund a new virtual packet with the
 // given address as the single receiver.
-func fundAddressSendPacket(t *harnessTest, tarod *tarodHarness,
+func fundAddressSendPacket(t *harnessTest, tarod *TarodHarness,
 	rpcAddr *tarorpc.Addr) *wrpc.FundVirtualPsbtResponse {
 
 	ctxb := context.Background()
@@ -233,7 +233,7 @@ func fundAddressSendPacket(t *harnessTest, tarod *tarodHarness,
 }
 
 // fundPacket asks the wallet to fund the given virtual packet.
-func fundPacket(t *harnessTest, tarod *tarodHarness,
+func fundPacket(t *harnessTest, tarod *TarodHarness,
 	vPkg *taropsbt.VPacket) *wrpc.FundVirtualPsbtResponse {
 
 	var buf bytes.Buffer
@@ -255,7 +255,7 @@ func fundPacket(t *harnessTest, tarod *tarodHarness,
 }
 
 // signVirtualPacket asks the wallet to sign the given virtual packet.
-func signVirtualPacket(t *harnessTest, tarod *tarodHarness,
+func signVirtualPacket(t *harnessTest, tarod *TarodHarness,
 	fundedPacket []byte) *wrpc.SignVirtualPsbtResponse {
 
 	ctxb := context.Background()
