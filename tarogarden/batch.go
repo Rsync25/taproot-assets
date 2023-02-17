@@ -6,6 +6,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/lightninglabs/taro/commitment"
 	"github.com/lightninglabs/taro/taroscript"
 	"github.com/lightningnetwork/lnd/keychain"
@@ -29,6 +30,10 @@ type MintingBatch struct {
 
 	// BatchKey is the unique identifier for a batch.
 	BatchKey keychain.KeyDescriptor
+
+	// GenesisOutPoint is the outpoint the genesis anchor transaction is
+	// spending, which adds the required uniqueness to the minted assets.
+	GenesisOutPoint *wire.OutPoint
 
 	// Seedlings is the set of seedlings for this batch. This maps an
 	// asset's name to the seedling itself.

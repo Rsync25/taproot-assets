@@ -25,6 +25,14 @@ var (
 	// Taro commitment to uniquely identify from any other leaves in the
 	// tapscript tree.
 	TaroMarker = sha256.Sum256([]byte(taroMarkerTag))
+
+	// TaroCommitmentScriptSize is the size of the Taro commitment script:
+	//
+	//	- 1 byte for the version
+	//	- 32 bytes for the TaroMarker
+	//	- 32 bytes for the root hash
+	//	- 8 bytes for the root sum
+	TaroCommitmentScriptSize = 1 + 32 + 32 + 8
 )
 
 // AssetCommitments is the set of assetCommitments backing a TaroCommitment.
@@ -174,13 +182,26 @@ func (c *TaroCommitment) TapLeaf() txscript.TapLeaf {
 	return txscript.NewBaseTapLeaf(leafScript)
 }
 
-// tapBranchHash takes the tap hashes of the left and right nodes and hashes
+// TapBranchHash takes the tap hashes of the left and right nodes and hashes
 // them into a branch.
-func tapBranchHash(l, r chainhash.Hash) chainhash.Hash {
+func TapBranchHash(l, r chainhash.Hash) chainhash.Hash {
 	if bytes.Compare(l[:], r[:]) > 0 {
 		l, r = r, l
 	}
 	return *chainhash.TaggedHash(chainhash.TagTapBranch, l[:], r[:])
+}
+
+// IsTaroCommitmentScript returns true if the passed script is a valid Taro
+// commitment script.
+func IsTaroCommitmentScript(script []byte) bool {
+	if len(script) != TaroCommitmentScriptSize {
+		return false
+	}
+	if script[0] == byte(asset.V0) {
+		return false
+	}
+
+	return bytes.Equal(script[1:1+len(TaroMarker)], TaroMarker[:])
 }
 
 // TapscriptRoot returns the tapscript root for this TaroCommitment. If
@@ -197,7 +218,7 @@ func (c *TaroCommitment) TapscriptRoot(sibling *chainhash.Hash) chainhash.Hash {
 
 	// The ordering of `commitmentLeaf` and `sibling` doesn't matter here as
 	// TapBranch will sort them before hashing.
-	return tapBranchHash(commitmentLeaf.TapHash(), *sibling)
+	return TapBranchHash(commitmentLeaf.TapHash(), *sibling)
 }
 
 // Proof computes the full TaroCommitment merkle proof for the asset leaf

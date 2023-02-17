@@ -708,3 +708,11 @@ message TapLeaf {
     uint32 version = 1;
     bytes script = 2;
 }
+
+message OutPoint {
+    // The hash of the transaction.
+    bytes hash = 1;
+
+    // The index of the output within the transaction.
+    uint32 index = 2;
+}

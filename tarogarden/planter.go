@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/lightninglabs/taro/asset"
 	"github.com/lightninglabs/taro/chanutils"
 	"github.com/lightninglabs/taro/proof"
@@ -144,6 +145,7 @@ func NewChainPlanter(cfg PlanterConfig) *ChainPlanter {
 		completionSignals: make(chan BatchKey),
 		seedlingReqs:      make(chan *Seedling),
 		stateReqs:         make(chan stateRequest),
+		externalBatch:     make(chan *externalBatchReq),
 		ContextGuard: &chanutils.ContextGuard{
 			DefaultTimeout: DefaultTimeout,
 			Quit:           make(chan struct{}),
@@ -284,6 +286,9 @@ func (c *ChainPlanter) gardener() {
 	for {
 		select {
 		case <-c.cfg.BatchTicker.Ticks():
+			log.Infof("Planter batch ticker ticked, checking for " +
+				"new batches")
+
 			// No pending batch, so we can just continue back to
 			// the top of the loop.
 			if c.pendingBatch == nil {
@@ -489,17 +494,22 @@ func (c *ChainPlanter) ForceBatch() (bool, error) {
 	return <-req.resp, nil
 }
 
-func (c *ChainPlanter) CultivateExternally(
-	_ *btcec.PublicKey) (*MintingBatch, error) {
+func (c *ChainPlanter) CultivateExternally(_ *btcec.PublicKey,
+	genesisOutPoint wire.OutPoint) (*MintingBatch, error) {
 
 	// TODO(guggero): Support more than one batch.
-	pendingBatch, err := c.PendingBatch()
+	batch, err := c.PendingBatch()
 	if err != nil {
 		return nil, err
 	}
+	batch.GenesisOutPoint = &genesisOutPoint
+
+	log.Debugf("Preparing batch %x for external cultivation, with genesis "+
+		"outpoint %v", batch.BatchKey.PubKey.SerializeCompressed(),
+		genesisOutPoint.String())
 
 	req := &externalBatchReq{
-		batch: pendingBatch,
+		batch: batch,
 		err:   make(chan error, 1),
 		done:  make(chan struct{}),
 	}
@@ -509,7 +519,7 @@ func (c *ChainPlanter) CultivateExternally(
 
 	select {
 	case <-req.done:
-		return pendingBatch, nil
+		return batch, nil
 
 	case err := <-req.err:
 		return nil, err

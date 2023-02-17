@@ -41,7 +41,8 @@ type Planter interface {
 
 	PauseAutoBatch()
 
-	CultivateExternally(batchKey *btcec.PublicKey) (*MintingBatch, error)
+	CultivateExternally(batchKey *btcec.PublicKey,
+		genesisOutPoint wire.OutPoint) (*MintingBatch, error)
 
 	// CancelSeedling attempts to cancel the creation of a new asset
 	// identified by its name. If the seedling has already progressed to a
@@ -69,24 +70,34 @@ const (
 	// seedlings can be added to it.
 	BatchStateFrozen BatchState = 1
 
+	// BatchStateGenesisOutPointDetermined denotes that a batch now has
+	// determined the unique genesis outpoint for the minted asset geneses.
+	BatchStateGenesisOutPointDetermined BatchState = 2
+
 	// BatchStateCommitted denotes that a batch now has an unsigned genesis
 	// PSBT packet and the set of seedlings have been made into sprouts
 	// with all relevant fields populated.
-	BatchStateCommitted BatchState = 2
+	BatchStateCommitted BatchState = 3
+
+	BatchStateOutputCreated BatchState = 4
+
+	// BatchStateAnchorCreated denotes that a batch now has a fully
+	// assembled anchor genesis transaction that just needs to be signed.
+	BatchStateAnchorCreated BatchState = 5
 
 	// BatchStateBroadcast denotes a batch now has a fully signed genesis
 	// transaction and can be broadcast to the network.
-	BatchStateBroadcast BatchState = 3
+	BatchStateBroadcast BatchState = 6
 
 	// BatchStateConfirmed denotes that a batch has confirmed on chain, and
 	// only needs a sufficient amount of confirmations before it can be
 	// finalized.
-	BatchStateConfirmed BatchState = 4
+	BatchStateConfirmed BatchState = 7
 
 	// BatchStateFinalized is the final state for a batch. In this terminal
 	// state the batch has been confirmed on chain, with all assets
 	// created.
-	BatchStateFinalized BatchState = 5
+	BatchStateFinalized BatchState = 8
 )
 
 // String returns a human-readable string for the target batch state.
@@ -98,8 +109,14 @@ func (b BatchState) String() string {
 	case BatchStateFrozen:
 		return "BatchStateFrozen"
 
+	case BatchStateGenesisOutPointDetermined:
+		return "BatchStateGenesisOutPointDetermined"
+
 	case BatchStateCommitted:
 		return "BatchStateCommitted"
+
+	case BatchStateAnchorCreated:
+		return "BatchStateAnchorCreated"
 
 	case BatchStateBroadcast:
 		return "BatchStateBroadcast"

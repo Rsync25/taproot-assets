@@ -14,6 +14,8 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
 	proxy "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/lightninglabs/taro/address"
@@ -434,7 +436,23 @@ func (r *rpcServer) PrepareExternalAnchor(_ context.Context,
 		return nil, fmt.Errorf("unable to parse batch key: %w", err)
 	}
 
-	batch, err := r.cfg.AssetMinter.CultivateExternally(batchKey)
+	if req.GenesisOutpoint == nil {
+		return nil, fmt.Errorf("genesis outpoint is missing")
+	}
+
+	genesisOutPointHash, err := chainhash.NewHash(req.GenesisOutpoint.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse genesis outpoint "+
+			"hash: %w", err)
+	}
+	genesisOutPoint := wire.OutPoint{
+		Hash:  *genesisOutPointHash,
+		Index: req.GenesisOutpoint.Index,
+	}
+
+	batch, err := r.cfg.AssetMinter.CultivateExternally(
+		batchKey, genesisOutPoint,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to prepare batch: %w", err)
 	}

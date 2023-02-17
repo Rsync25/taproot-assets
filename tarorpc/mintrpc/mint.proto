@@ -92,6 +92,8 @@ message MintingBatchesResponse {
 message PrepareExternalAnchorRequest {
     // The public key of the batch.
     bytes batch_key = 1;
+
+    tarorpc.OutPoint genesis_outpoint = 2;
 }
 
 message PrepareExternalAnchorResponse {
