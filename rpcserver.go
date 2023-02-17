@@ -137,6 +137,10 @@ var (
 			Entity: "assets",
 			Action: "read",
 		}},
+		"/mintrpc.Mint/PrepareExternalAnchor": {{
+			Entity: "assets",
+			Action: "write",
+		}},
 	}
 )
 
@@ -399,6 +403,54 @@ func (r *rpcServer) MintAsset(ctx context.Context,
 			BatchKey: update.BatchKey.SerializeCompressed(),
 		}, nil
 	}
+}
+
+func (r *rpcServer) MintingBatches(ctx context.Context,
+	_ *mintrpc.MintingBatchesRequest) (*mintrpc.MintingBatchesResponse,
+	error) {
+
+	dbBatches, err := r.cfg.MintingStore.FetchNonFinalBatches(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch batches: %w", err)
+	}
+
+	rpcBatches := make([]*mintrpc.MintingBatch, len(dbBatches))
+	for idx := range dbBatches {
+		rpcBatches[idx] = marshalMintingBatch(dbBatches[idx])
+	}
+
+	return &mintrpc.MintingBatchesResponse{
+		Batches: rpcBatches,
+	}, nil
+}
+
+func (r *rpcServer) PrepareExternalAnchor(_ context.Context,
+	req *mintrpc.PrepareExternalAnchorRequest) (
+	*mintrpc.PrepareExternalAnchorResponse, error) {
+
+	// If the user provided a batch key, we'll attempt to parse it.
+	batchKey, err := btcec.ParsePubKey(req.BatchKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse batch key: %w", err)
+	}
+
+	batch, err := r.cfg.AssetMinter.CultivateExternally(batchKey)
+	if err != nil {
+		return nil, fmt.Errorf("unable to prepare batch: %w", err)
+	}
+
+	if batch.RootAssetCommitment == nil {
+		return nil, fmt.Errorf("batch not ready, commitment missing")
+	}
+	taroLeaf := batch.RootAssetCommitment.TapLeaf()
+
+	return &mintrpc.PrepareExternalAnchorResponse{
+		Batch: marshalMintingBatch(batch),
+		TaroTapLeaf: &tarorpc.TapLeaf{
+			Version: uint32(taroLeaf.LeafVersion),
+			Script:  taroLeaf.Script,
+		},
+	}, nil
 }
 
 // ListAssets lists the set of assets owned by the target daemon.
@@ -1624,4 +1676,32 @@ func unmarshalKeyDescriptor(
 	}
 
 	return desc, nil
+}
+
+// marshalMintingBatch marshals a minting batch into the RPC counterpart.
+func marshalMintingBatch(batch *tarogarden.MintingBatch) *mintrpc.MintingBatch {
+	rpcAssets := make([]*mintrpc.MintAsset, 0, len(batch.Seedlings))
+	for name := range batch.Seedlings {
+		seedling := batch.Seedlings[name]
+		var groupKeyBytes []byte
+		if seedling.HasGroupKey() {
+			groupKey := seedling.GroupInfo.GroupKey
+			groupPubKey := groupKey.GroupPubKey
+			groupKeyBytes = groupPubKey.SerializeCompressed()
+		}
+
+		rpcAssets = append(rpcAssets, &mintrpc.MintAsset{
+			AssetType: tarorpc.AssetType(seedling.AssetType),
+			Name:      seedling.AssetName,
+			MetaData:  seedling.Metadata,
+			Amount:    int64(seedling.Amount),
+			GroupKey:  groupKeyBytes,
+		})
+	}
+
+	return &mintrpc.MintingBatch{
+		BatchKey: batch.BatchKey.PubKey.SerializeCompressed(),
+		State:    batch.BatchState.String(),
+		Assets:   rpcAssets,
+	}
 }

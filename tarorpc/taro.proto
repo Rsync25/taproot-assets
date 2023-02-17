@@ -703,3 +703,8 @@ message ReceiverProofBackoffWaitEvent {
     // receiver.
     int64 tries_counter = 3;
 }
+
+message TapLeaf {
+    uint32 version = 1;
+    bytes script = 2;
+}

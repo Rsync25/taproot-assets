@@ -138,18 +138,34 @@
         }
       }
     },
-    "mintrpcMintingBatchResponse": {
+    "mintrpcMintingBatch": {
       "type": "object",
       "properties": {
+        "batch_key": {
+          "type": "string",
+          "format": "byte",
+          "description": "The public key of the batch."
+        },
         "assets": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/mintrpcMintAsset"
-          }
+          },
+          "description": "The assets that are part of the batch."
         },
-        "taro_root_key": {
-          "type": "string",
-          "format": "byte"
+        "state": {
+          "type": "string"
+        }
+      }
+    },
+    "mintrpcMintingBatchesResponse": {
+      "type": "object",
+      "properties": {
+        "batches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/mintrpcMintingBatch"
+          }
         }
       }
     },
@@ -158,6 +174,17 @@
     },
     "mintrpcPauseAutoBatchResponse": {
       "type": "object"
+    },
+    "mintrpcPrepareExternalAnchorResponse": {
+      "type": "object",
+      "properties": {
+        "batch": {
+          "$ref": "#/definitions/mintrpcMintingBatch"
+        },
+        "taro_tap_leaf": {
+          "$ref": "#/definitions/tarorpcTapLeaf"
+        }
+      }
     },
     "protobufAny": {
       "type": "object",
@@ -197,6 +224,19 @@
       ],
       "default": "NORMAL",
       "description": " - NORMAL: Indicates that an asset is capable of being split/merged, with each of the\nunits being fungible, even across a key asset ID boundary (assuming the\nkey group is the same).\n - COLLECTIBLE: Indicates that an asset is a collectible, meaning that each of the other\nitems under the same key group are not fully fungible with each other.\nCollectibles also cannot be split or merged."
+    },
+    "tarorpcTapLeaf": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "script": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
     }
   }
 }

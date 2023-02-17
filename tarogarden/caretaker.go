@@ -244,6 +244,29 @@ func (b *BatchCaretaker) taroCultivator() {
 	}
 }
 
+func (b *BatchCaretaker) prepForExternalCultivation() error {
+	// If the batch is already marked as committed or beyond, then we're
+	// done.
+	if b.cfg.Batch.BatchState >= BatchStateCommitted {
+		log.Infof("MintingBatch(%x): already committed!", b.batchKey[:])
+
+		return nil
+	}
+
+	// The task of preparing a batch for external cultivation is to advance
+	// our state up to the point where we created the output commitments.
+	// The external cultivator will then take over from there and create an
+	// anchor transaction.
+	_, err := b.advanceStateUntil(
+		b.cfg.Batch.BatchState, BatchStateCommitted,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to advance state machine: %w", err)
+	}
+
+	return nil
+}
+
 // fundGenesisPsbt generates a PSBT packet we'll use to create an asset.  In
 // order to be able to create an asset, we need an initial genesis outpoint. To
 // obtain this we'll ask the wallet to fund a PSBT template for GenesisAmtSats

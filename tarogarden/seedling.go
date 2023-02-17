@@ -148,19 +148,12 @@ func (c Seedling) validateGroupKey(group asset.AssetGroup) error {
 
 // HasGroupKey checks if a seedling specifies a particular group key.
 func (c Seedling) HasGroupKey() bool {
-	// We have to nest these checks to avoid dereferencing a nil pointer and
-	// panicking. If the GroupKey is set, the tweaked public key has already
-	// been parsed.
-	if c.GroupInfo != nil {
-		if c.GroupInfo.GroupKey != nil {
-			return true
-		}
-	}
-
-	return false
+	// If the GroupKey is set, the tweaked public key has already been
+	// parsed.
+	return c.GroupInfo != nil && c.GroupInfo.GroupKey != nil
 }
 
-// String returns a human readable representation for the AssetSeedling.
+// String returns a human-readable representation for the AssetSeedling.
 func (c Seedling) String() string {
 	return fmt.Sprintf("AssetSeedling(name=%v, type=%v, amt=%v) received",
 		c.AssetName, c.AssetType, c.Amount)

@@ -13,7 +13,10 @@ service Mint {
     */
     rpc MintAsset (MintAssetRequest) returns (MintAssetResponse);
 
-    rpc MintingBatch (MintingBatchRequest) returns (MintingBatchResponse);
+    rpc MintingBatches (MintingBatchesRequest) returns (MintingBatchesResponse);
+
+    rpc PrepareExternalAnchor (PrepareExternalAnchorRequest)
+        returns (PrepareExternalAnchorResponse);
 
     rpc PauseAutoBatch (PauseAutoBatchRequest) returns (PauseAutoBatchResponse);
 }
@@ -69,19 +72,32 @@ message MintAssetResponse {
     bytes batch_key = 1;
 }
 
-message MintingBatchRequest {
-    /*
-    A public key serialized in compressed format that can be used to uniquely
-    identify a pending minting batch. Responses that share the same key will be
-    batched into the same minting transaction.
-    */
+message MintingBatchesRequest {
+}
+
+message MintingBatch {
+    // The public key of the batch.
+    bytes batch_key = 1;
+
+    // The assets that are part of the batch.
+    repeated MintAsset assets = 2;
+
+    string state = 3;
+}
+
+message MintingBatchesResponse {
+    repeated MintingBatch batches = 1;
+}
+
+message PrepareExternalAnchorRequest {
+    // The public key of the batch.
     bytes batch_key = 1;
 }
 
-message MintingBatchResponse {
-    repeated MintAsset assets = 1;
+message PrepareExternalAnchorResponse {
+    MintingBatch batch = 1;
 
-    bytes taro_root_key = 2;
+    tarorpc.TapLeaf taro_tap_leaf = 2;
 }
 
 message PauseAutoBatchRequest {

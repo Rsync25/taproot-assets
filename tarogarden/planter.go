@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/lightninglabs/taro/asset"
 	"github.com/lightninglabs/taro/chanutils"
 	"github.com/lightninglabs/taro/proof"
@@ -90,6 +91,12 @@ const (
 	reqTypeForceBatch
 )
 
+type externalBatchReq struct {
+	batch *MintingBatch
+	err   chan error
+	done  chan struct{}
+}
+
 // ChainPlanter is responsible for accepting new incoming requests to create
 // taro assets. The planter will periodically batch those requests into a new
 // minting batch, which is handed off to a caretaker. While batches are
@@ -107,6 +114,8 @@ type ChainPlanter struct {
 	// pendingBatch is the current pending, non-frozen batch. Only one of
 	// these will exist at any given time.
 	pendingBatch *MintingBatch
+
+	externalBatch chan *externalBatchReq
 
 	// caretakers maps a batch key (which is used as the internal key for
 	// the transaction that mints the assets) to the caretaker that will
@@ -311,6 +320,38 @@ func (c *ChainPlanter) gardener() {
 			// batch, we'll set the pending batch to nil
 			c.pendingBatch = nil
 
+		case extBatchReq := <-c.externalBatch:
+			// Prep the new care taker that'll be launched assuming
+			// the call below to freeze the batch succeeds.
+			caretaker := c.newCaretakerForBatch(extBatchReq.batch)
+
+			// At this point, we have a non-empty batch, so we'll
+			// first finalize it on disk. This means no further
+			// seedlings can be added to this batch.
+			ctx, cancel := c.WithCtxQuit()
+			err := freezeMintingBatch(
+				ctx, c.cfg.Log, extBatchReq.batch,
+			)
+			cancel()
+			if err != nil {
+				extBatchReq.err <- fmt.Errorf("unable to "+
+					"freeze minting batch: %w", err)
+				continue
+			}
+
+			// Now that the batch has been frozen, we'll launch a
+			// new caretaker state machine for the batch that'll
+			// drive all the seedlings do adulthood.
+			err = caretaker.prepForExternalCultivation()
+			if err != nil {
+				extBatchReq.err <- fmt.Errorf("unable to "+
+					"prepare for external cultivation: %w",
+					err)
+				continue
+			}
+
+			extBatchReq.done <- struct{}{}
+
 		// A request for new asset issuance just arrived, add this to
 		// the pending batch and acknowledge the receipt back to the
 		// caller.
@@ -446,6 +487,33 @@ func (c *ChainPlanter) ForceBatch() (bool, error) {
 	}
 
 	return <-req.resp, nil
+}
+
+func (c *ChainPlanter) CultivateExternally(
+	_ *btcec.PublicKey) (*MintingBatch, error) {
+
+	// TODO(guggero): Support more than one batch.
+	pendingBatch, err := c.PendingBatch()
+	if err != nil {
+		return nil, err
+	}
+
+	req := &externalBatchReq{
+		batch: pendingBatch,
+		err:   make(chan error, 1),
+		done:  make(chan struct{}),
+	}
+	if !chanutils.SendOrQuit(c.externalBatch, req, c.Quit) {
+		return nil, fmt.Errorf("chain planter shutting down")
+	}
+
+	select {
+	case <-req.done:
+		return pendingBatch, nil
+
+	case err := <-req.err:
+		return nil, err
+	}
 }
 
 // prepTaroSeedling performs some basic validation for the TaroSeedling, then
