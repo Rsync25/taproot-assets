@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/lightninglabs/taproot-assets/asset"
+	"reflect"
 	"sync"
 
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -184,11 +187,21 @@ func (a *MintingArchive) RegisterIssuance(ctx context.Context, id Identifier,
 	// Otherwise, this is a new proof, so we'll first perform validation of
 	// the minting leaf to ensure it's a valid issuance proof.
 	//
-	// The proofs we insert are just the state transition, so we'll encode
-	// it as a file first as that's what the expected wants.
 	//
 	// TODO(roasbeef): add option to skip proof verification?
-	assetSnapshot, err := newProof.Verify(ctx, nil, a.cfg.HeaderVerifier)
+
+	// Before we can validate a non-issuance proof we need to fetch the
+	// previous asset snapshot (which is the proof verification result for
+	// the previous/parent proof in the proof file).
+	prevAssetSnapshot, err := a.getPrevAssetSnapshot(ctx, id, newProof)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch previous asset "+
+			"snapshot: %v", err)
+	}
+
+	assetSnapshot, err := newProof.Verify(
+		ctx, prevAssetSnapshot, a.cfg.HeaderVerifier,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to verify proof: %v", err)
 	}
@@ -243,6 +256,72 @@ func (a *MintingArchive) RegisterIssuance(ctx context.Context, id Identifier,
 	}()
 
 	return issuanceProof, nil
+}
+
+func (a *MintingArchive) getPrevAssetSnapshot(ctx context.Context,
+	uniID Identifier, newProof proof.Proof) (*proof.AssetSnapshot, error) {
+
+	// If this is a genesis proof, then there is no previous asset (and
+	// therefore no previous asset snapshot).
+	if newProof.Asset.HasGenesisWitness() {
+		return nil, nil
+	}
+
+	// Query for proof associated with the previous asset.
+	prevID := newProof.Asset.PrevWitnesses[0].PrevID
+	prevOutPoint := prevID.OutPoint
+
+	var allZeros [32]byte
+	if reflect.DeepEqual(prevOutPoint.Hash.CloneBytes(), allZeros[:]) {
+		return nil, nil
+	}
+
+	// Parse script key for previous asset.
+	prevScriptKeyBytes := prevID.ScriptKey
+	prevScriptKeyPubKey, err := btcec.ParsePubKey(
+		prevScriptKeyBytes[:],
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse previous "+
+			"script key: %v", err)
+	}
+	prevScriptKey := asset.NewScriptKey(prevScriptKeyPubKey)
+
+	prevBaseKey := BaseKey{
+		MintingOutpoint: prevOutPoint,
+		ScriptKey:       &prevScriptKey,
+	}
+
+	prevProofs, err := a.cfg.Multiverse.FetchIssuanceProof(
+		ctx, uniID, prevBaseKey,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch previous "+
+			"proof: %v", err)
+	}
+	prevProofFileBytes := prevProofs[0].Leaf.GenesisProof
+
+	// Parse proof file bytes.
+	var prevProofFile proof.File
+	if err := prevProofFile.Decode(
+		bytes.NewReader(prevProofFileBytes),
+	); err != nil {
+		return nil, err
+	}
+
+	prevProof, err := prevProofFile.LastProof()
+	if err != nil {
+		return nil, err
+	}
+
+	// Construct minimal asset snapshot for previous asset.
+	// This is a minimal the proof verification result for the
+	// previous (input) asset. We know that it was already verified
+	// as it was present in the multiverse/universe archive.
+	return &proof.AssetSnapshot{
+		Asset:    &prevProof.Asset,
+		OutPoint: prevOutPoint,
+	}, nil
 }
 
 // FetchIssuanceProof attempts to fetch an issuance proof for the target base
