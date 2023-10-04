@@ -26,6 +26,20 @@ var (
 		generatedTestVectorName,
 		errorTestVectorName,
 	}
+
+	invalidHashLockErr = newErrInner(
+		ErrInvalidTransferWitness, txscript.Error{
+			ErrorCode:   txscript.ErrEqualVerify,
+			Description: "OP_EQUALVERIFY failed",
+		},
+	)
+	invalidSigErr = newErrInner(
+		ErrInvalidTransferWitness, txscript.Error{
+			ErrorCode: txscript.ErrNullFail,
+			Description: "signature not empty on " +
+				"failed checksig",
+		},
+	)
 )
 
 func randAsset(t *testing.T, assetType asset.Type,
@@ -101,25 +115,54 @@ type stateTransitionFunc = func(t *testing.T) (*asset.Asset,
 	commitment.SplitSet, commitment.InputSet)
 
 func genesisStateTransition(assetType asset.Type,
-	valid bool) stateTransitionFunc {
+	valid, grouped bool) stateTransitionFunc {
+
+	return func(t *testing.T) (*asset.Asset, commitment.SplitSet,
+		commitment.InputSet) {
+
+		var (
+			inputSet commitment.InputSet
+			splitSet commitment.SplitSet
+			a        = asset.RandAsset(t, assetType)
+		)
+
+		if !grouped {
+			a = asset.NewAssetNoErr(
+				t, a.Genesis, a.Amount, a.LockTime,
+				a.RelativeLockTime, a.ScriptKey, nil,
+			)
+		}
+
+		if !valid && assetType == asset.Collectible {
+			inputSet = commitment.InputSet{
+				asset.PrevID{}: a.Copy(),
+			}
+		}
+
+		if !valid && assetType == asset.Normal {
+			splitSet = commitment.SplitSet{
+				{}: &commitment.SplitAsset{},
+			}
+		}
+
+		return a, splitSet, inputSet
+	}
+}
+
+func invalidGenesisStateTransitionWitness(assetType asset.Type,
+	grouped bool) stateTransitionFunc {
 
 	return func(t *testing.T) (*asset.Asset, commitment.SplitSet,
 		commitment.InputSet) {
 
 		a := asset.RandAsset(t, assetType)
-		if assetType == asset.Collectible && !valid {
-			inputSet := commitment.InputSet{
-				asset.PrevID{}: a.Copy(),
-			}
-			return a, nil, inputSet
+		if grouped {
+			a.PrevWitnesses[0].TxWitness = nil
+
+			return a, nil, nil
 		}
 
-		if assetType == asset.Normal && !valid {
-			splitSet := commitment.SplitSet{
-				{}: &commitment.SplitAsset{},
-			}
-			return a, splitSet, nil
-		}
+		a.GroupKey = nil
 
 		return a, nil, nil
 	}
@@ -398,6 +441,17 @@ func splitCollectibleStateTransition(validRoot bool) stateTransitionFunc {
 			splitCommitment.PrevAssets
 	}
 }
+func complexGroupAnchorStateTransition(useHashLock, BIP86, keySpend, valid bool,
+	assetType asset.Type) stateTransitionFunc {
+
+	return func(t *testing.T) (*asset.Asset, commitment.SplitSet,
+		commitment.InputSet) {
+
+		return asset.AssetCustomGroupKey(
+			t, useHashLock, BIP86, keySpend, valid, assetType,
+		), nil, nil
+	}
+}
 
 func scriptTreeSpendStateTransition(t *testing.T, useHashLock,
 	valid bool, sigHashType txscript.SigHashType) stateTransitionFunc {
@@ -471,14 +525,88 @@ func TestVM(t *testing.T) {
 		err  error
 	}{
 		{
+			name: "collectible group anchor",
+			f: genesisStateTransition(
+				asset.Collectible, true, true,
+			),
+			err: nil,
+		},
+		{
 			name: "collectible genesis",
-			f:    genesisStateTransition(asset.Collectible, true),
-			err:  nil,
+			f: genesisStateTransition(
+				asset.Collectible, true, false,
+			),
+			err: nil,
+		},
+		{
+			name: "invalid collectible group anchor",
+			f: genesisStateTransition(
+				asset.Collectible, false, true,
+			),
+			err: newErrKind(ErrInvalidGenesisStateTransition),
 		},
 		{
 			name: "invalid collectible genesis",
-			f:    genesisStateTransition(asset.Collectible, false),
-			err:  newErrKind(ErrInvalidGenesisStateTransition),
+			f: genesisStateTransition(
+				asset.Collectible, false, false,
+			),
+			err: newErrKind(ErrInvalidGenesisStateTransition),
+		},
+		{
+			name: "collectible genesis invalid witness",
+			f: invalidGenesisStateTransitionWitness(
+				asset.Collectible, false,
+			),
+			err: ErrNoInputs,
+		},
+		{
+			name: "collectible group anchor invalid witness",
+			f: invalidGenesisStateTransitionWitness(
+				asset.Collectible, true,
+			),
+			err: newErrKind(ErrInvalidGenesisStateTransition),
+		},
+		{
+			name: "collectible group anchor BIP86 key",
+			f: complexGroupAnchorStateTransition(
+				true, true, false, false, asset.Collectible,
+			),
+			err: nil,
+		},
+		{
+			name: "normal group anchor key spend",
+			f: complexGroupAnchorStateTransition(
+				true, false, true, true, asset.Normal,
+			),
+			err: nil,
+		},
+		{
+			name: "normal group anchor hash lock witness",
+			f: complexGroupAnchorStateTransition(
+				true, false, false, true, asset.Normal,
+			),
+			err: nil,
+		},
+		{
+			name: "collectible group anchor sig script witness",
+			f: complexGroupAnchorStateTransition(
+				false, false, false, true, asset.Collectible,
+			),
+			err: nil,
+		},
+		{
+			name: "collectible group anchor invalid hash lock",
+			f: complexGroupAnchorStateTransition(
+				true, false, false, false, asset.Collectible,
+			),
+			err: invalidHashLockErr,
+		},
+		{
+			name: "normal group anchor invalid sig",
+			f: complexGroupAnchorStateTransition(
+				false, false, false, false, asset.Normal,
+			),
+			err: invalidSigErr,
 		},
 		{
 			name: "invalid split collectible input",
@@ -486,14 +614,38 @@ func TestVM(t *testing.T) {
 			err:  newErrKind(ErrInvalidSplitAssetType),
 		},
 		{
-			name: "normal genesis",
-			f:    genesisStateTransition(asset.Normal, true),
+			name: "normal group anchor",
+			f:    genesisStateTransition(asset.Normal, true, true),
 			err:  nil,
 		},
 		{
-			name: "invalid normal genesis",
-			f:    genesisStateTransition(asset.Normal, false),
+			name: "normal genesis",
+			f:    genesisStateTransition(asset.Normal, true, false),
+			err:  nil,
+		},
+		{
+			name: "invalid normal group anchor",
+			f:    genesisStateTransition(asset.Normal, false, true),
 			err:  newErrKind(ErrInvalidGenesisStateTransition),
+		},
+		{
+			name: "invalid normal genesis",
+			f:    genesisStateTransition(asset.Normal, false, false),
+			err:  newErrKind(ErrInvalidGenesisStateTransition),
+		},
+		{
+			name: "normal genesis invalid witness",
+			f: invalidGenesisStateTransitionWitness(
+				asset.Normal, false,
+			),
+			err: ErrNoInputs,
+		},
+		{
+			name: "normalgroup anchor invalid witness",
+			f: invalidGenesisStateTransitionWitness(
+				asset.Normal, true,
+			),
+			err: newErrKind(ErrInvalidGenesisStateTransition),
 		},
 		{
 			name: "collectible state transition",
@@ -539,13 +691,8 @@ func TestVM(t *testing.T) {
 		{
 			name: "script tree spend state transition invalid " +
 				"hash lock",
-			f: scriptTreeSpendStateTransition(t, true, false, 999),
-			err: newErrInner(
-				ErrInvalidTransferWitness, txscript.Error{
-					ErrorCode:   txscript.ErrEqualVerify,
-					Description: "OP_EQUALVERIFY failed",
-				},
-			),
+			f:   scriptTreeSpendStateTransition(t, true, false, 999),
+			err: invalidHashLockErr,
 		},
 		{
 			name: "script tree spend state transition valid sig " +
@@ -566,14 +713,8 @@ func TestVM(t *testing.T) {
 		{
 			name: "script tree spend state transition invalid " +
 				"sig",
-			f: scriptTreeSpendStateTransition(t, false, false, 999),
-			err: newErrInner(
-				ErrInvalidTransferWitness, txscript.Error{
-					ErrorCode: txscript.ErrNullFail,
-					Description: "signature not empty on " +
-						"failed checksig",
-				},
-			),
+			f:   scriptTreeSpendStateTransition(t, false, false, 999),
+			err: invalidSigErr,
 		},
 	}
 
