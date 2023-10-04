@@ -1203,9 +1203,10 @@ func (a *Asset) Copy() *Asset {
 
 	if a.GroupKey != nil {
 		assetCopy.GroupKey = &GroupKey{
-			RawKey:      a.GroupKey.RawKey,
-			GroupPubKey: a.GroupKey.GroupPubKey,
-			Witness:     a.GroupKey.Witness,
+			RawKey:        a.GroupKey.RawKey,
+			GroupPubKey:   a.GroupKey.GroupPubKey,
+			TapscriptRoot: a.GroupKey.TapscriptRoot,
+			Witness:       a.GroupKey.Witness,
 		}
 	}
 
