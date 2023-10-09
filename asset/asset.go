@@ -815,6 +815,10 @@ func DeriveGroupKey(genSigner GenesisSigner, genBuilder GenesisTxBuilder,
 		return nil, fmt.Errorf("asset is not a genesis asset")
 	}
 
+	if newAsset.GroupKey != nil {
+		return nil, fmt.Errorf("asset already has group key")
+	}
+
 	if initialGen.Type != newAsset.Type {
 		return nil, fmt.Errorf("asset group type mismatch")
 	}
@@ -877,6 +881,10 @@ func DeriveCustomGroupKey(genSigner GenesisSigner, genBuilder GenesisTxBuilder,
 
 	if !newAsset.HasGenesisWitness() {
 		return nil, fmt.Errorf("asset is not a genesis asset")
+	}
+
+	if newAsset.GroupKey != nil {
+		return nil, fmt.Errorf("asset already has group key")
 	}
 
 	if initialGen.Type != newAsset.Type {
