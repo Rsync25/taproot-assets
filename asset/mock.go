@@ -305,6 +305,75 @@ func SignVirtualTx(priv *btcec.PrivateKey, signDesc *lndclient.SignDescriptor,
 	return sig, nil
 }
 
+// AssetCustomGroupKey constructs a group anchor that uses a group key with
+// a tapscript root that includes a hash lock script and signature script.
+func AssetCustomGroupKey(t *testing.T, useHashLock, BIP86, keySpend, valid bool,
+	assetType Type) *Asset {
+
+	t.Helper()
+
+	genesis := RandGenesis(t, assetType)
+	genID := genesis.ID()
+	scriptKey := RandScriptKey(t)
+	protoAsset := RandAssetWithValues(t, genesis, nil, scriptKey)
+
+	groupPrivKey := test.RandPrivKey(t)
+	groupInternalKey := groupPrivKey.PubKey()
+	genSigner := NewMockGenesisSigner(groupPrivKey)
+	genBuilder := MockGroupTxBuilder{}
+
+	// Manually create and use the singly tweaked key here, to match the
+	// signing behavior later when using the signing descriptor.
+	groupSinglyTweakedKey := input.TweakPubKeyWithTweak(
+		groupInternalKey, genID[:],
+	)
+	_, _, tapLeaf, tapTweak, scriptWitness := test.BuildTapscriptTree(
+		t, useHashLock, valid, groupSinglyTweakedKey,
+	)
+
+	// Default to a BIP-0086 style group key.
+	signDesc := lndclient.SignDescriptor{
+		KeyDesc: test.PubToKeyDesc(groupInternalKey),
+	}
+
+	// Update the signing descriptor and group key derivation arguments
+	// to match the requested group key type.
+	if BIP86 && keySpend {
+		require.Fail(t, "Cannot have both BIP 86 and key spend group "+
+			"key types")
+	}
+
+	switch {
+	case BIP86:
+		// Unset the created script and script witness.
+		tapLeaf = nil
+		scriptWitness = nil
+
+	case keySpend:
+		// Set a tapscipt root but unset the created script and witness.
+		signDesc.TapTweak = tapTweak
+		tapLeaf = nil
+		scriptWitness = nil
+
+	default:
+		// For a script spend, we only need to set the tapscript root
+		// in the sign descriptor; the script and script witness are
+		// already populated.
+		signDesc.TapTweak = tapTweak
+	}
+
+	groupKey, err := DeriveCustomGroupKey(
+		genSigner, &genBuilder, signDesc, tapLeaf, scriptWitness,
+		genesis, protoAsset,
+	)
+	require.NoError(t, err)
+
+	return NewAssetNoErr(
+		t, genesis, protoAsset.Amount, protoAsset.LockTime,
+		protoAsset.RelativeLockTime, scriptKey, groupKey,
+	)
+}
+
 // RandScriptKey creates a random script key for testing.
 func RandScriptKey(t testing.TB) ScriptKey {
 	return NewScriptKey(test.RandPrivKey(t).PubKey())
