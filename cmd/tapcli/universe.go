@@ -8,7 +8,6 @@ import (
 	tap "github.com/lightninglabs/taproot-assets"
 	"github.com/lightninglabs/taproot-assets/proof"
 	"github.com/lightninglabs/taproot-assets/taprpc"
-	"github.com/lightninglabs/taproot-assets/taprpc/universerpc"
 	unirpc "github.com/lightninglabs/taproot-assets/taprpc/universerpc"
 	"github.com/lightninglabs/taproot-assets/universe"
 	"github.com/lightningnetwork/lnd/lncfg"
@@ -19,14 +18,14 @@ const (
 	proofTypeName = "proof_type"
 )
 
-func getUniverseClient(ctx *cli.Context) (universerpc.UniverseClient, func()) {
+func getUniverseClient(ctx *cli.Context) (unirpc.UniverseClient, func()) {
 	conn := getClientConn(ctx, false)
 
 	cleanUp := func() {
 		conn.Close()
 	}
 
-	return universerpc.NewUniverseClient(conn), cleanUp
+	return unirpc.NewUniverseClient(conn), cleanUp
 }
 
 // TODO(roasbeef): all should be able to connect to remote uni
@@ -74,12 +73,29 @@ var universeRootsCommand = cli.Command{
 	Action: universeRoots,
 }
 
-func parseUniverseID(ctx *cli.Context, mustParse bool) (*universerpc.ID, error) {
+func parseProofType(ctx *cli.Context) (*unirpc.ProofType, error) {
+	if !ctx.IsSet(proofTypeName) {
+		return nil, fmt.Errorf("must specify proof type")
+	}
+
 	proofType, err := universe.ParseStrProofType(ctx.String(proofTypeName))
 	if err != nil {
 		return nil, err
 	}
 	rpcProofType, err := tap.MarshalUniProofType(proofType)
+	if err != nil {
+		return nil, err
+	}
+
+	if rpcProofType == unirpc.ProofType_PROOF_TYPE_UNSPECIFIED {
+		return nil, fmt.Errorf("invalid proof type")
+	}
+
+	return &rpcProofType, nil
+}
+
+func parseUniverseID(ctx *cli.Context, mustParse bool) (*unirpc.ID, error) {
+	rpcProofType, err := parseProofType(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -99,11 +115,11 @@ func parseUniverseID(ctx *cli.Context, mustParse bool) (*universerpc.ID, error) 
 		if err != nil {
 			return nil, err
 		}
-		return &universerpc.ID{
-			Id: &universerpc.ID_AssetId{
+		return &unirpc.ID{
+			Id: &unirpc.ID_AssetId{
 				AssetId: assetIDBytes,
 			},
-			ProofType: rpcProofType,
+			ProofType: *rpcProofType,
 		}, nil
 
 	case ctx.IsSet(groupKeyName):
@@ -114,11 +130,11 @@ func parseUniverseID(ctx *cli.Context, mustParse bool) (*universerpc.ID, error) 
 			return nil, err
 		}
 
-		return &universerpc.ID{
-			Id: &universerpc.ID_GroupKey{
+		return &unirpc.ID{
+			Id: &unirpc.ID_GroupKey{
 				GroupKey: groupKeyBytes,
 			},
-			ProofType: rpcProofType,
+			ProofType: *rpcProofType,
 		}, nil
 
 	// Neither was set, so we'll return nil.
@@ -141,7 +157,7 @@ func universeRoots(ctx *cli.Context) error {
 	// for all the known universe roots.
 	if universeID == nil {
 		universeRoots, err := client.AssetRoots(
-			ctxc, &universerpc.AssetRootRequest{},
+			ctxc, &unirpc.AssetRootRequest{},
 		)
 		if err != nil {
 			return err
@@ -151,7 +167,7 @@ func universeRoots(ctx *cli.Context) error {
 		return nil
 	}
 
-	rootReq := &universerpc.AssetRootQuery{
+	rootReq := &unirpc.AssetRootQuery{
 		Id: universeID,
 	}
 
@@ -198,7 +214,7 @@ func deleteUniverseRoot(ctx *cli.Context) error {
 		return err
 	}
 
-	rootReq := &universerpc.DeleteRootQuery{
+	rootReq := &unirpc.DeleteRootQuery{
 		Id: universeID,
 	}
 
@@ -366,7 +382,7 @@ var universeProofQueryCommand = cli.Command{
 	Action: universeProofQuery,
 }
 
-func parseAssetKey(ctx *cli.Context) (*universerpc.AssetKey, error) {
+func parseAssetKey(ctx *cli.Context) (*unirpc.AssetKey, error) {
 	if !ctx.IsSet(outpointName) || !ctx.IsSet(scriptKeyName) {
 		return nil, fmt.Errorf("outpoint and script key must be set")
 	}
@@ -376,14 +392,14 @@ func parseAssetKey(ctx *cli.Context) (*universerpc.AssetKey, error) {
 		return nil, err
 	}
 
-	return &universerpc.AssetKey{
-		Outpoint: &universerpc.AssetKey_Op{
+	return &unirpc.AssetKey{
+		Outpoint: &unirpc.AssetKey_Op{
 			Op: &unirpc.Outpoint{
 				HashStr: outpoint.Hash.String(),
 				Index:   int32(outpoint.Index),
 			},
 		},
-		ScriptKey: &universerpc.AssetKey_ScriptKeyStr{
+		ScriptKey: &unirpc.AssetKey_ScriptKeyStr{
 			ScriptKeyStr: ctx.String(scriptKeyName),
 		},
 	}, nil
@@ -403,7 +419,7 @@ func universeProofQuery(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	uProof, err := client.QueryProof(ctxc, &universerpc.UniverseKey{
+	uProof, err := client.QueryProof(ctxc, &unirpc.UniverseKey{
 		Id:      universeID,
 		LeafKey: assetKey,
 	})
@@ -478,12 +494,12 @@ func universeProofInsert(ctx *cli.Context) error {
 		return err
 	}
 
-	req := &universerpc.AssetProof{
-		Key: &universerpc.UniverseKey{
+	req := &unirpc.AssetProof{
+		Key: &unirpc.UniverseKey{
 			Id:      universeID,
 			LeafKey: assetKey,
 		},
-		AssetLeaf: &universerpc.AssetLeaf{
+		AssetLeaf: &unirpc.AssetLeaf{
 			Asset:         rpcAsset,
 			IssuanceProof: rawProof,
 		},
@@ -535,9 +551,9 @@ func universeSync(ctx *cli.Context) error {
 		return err
 	}
 
-	var targets []*universerpc.SyncTarget
+	var targets []*unirpc.SyncTarget
 	if universeID != nil {
-		targets = append(targets, &universerpc.SyncTarget{
+		targets = append(targets, &unirpc.SyncTarget{
 			Id: universeID,
 		})
 	}
@@ -548,7 +564,7 @@ func universeSync(ctx *cli.Context) error {
 
 	// TODO(roasbeef): add support for full sync
 
-	syncResp, err := client.SyncUniverse(ctxc, &universerpc.SyncRequest{
+	syncResp, err := client.SyncUniverse(ctxc, &unirpc.SyncRequest{
 		UniverseHost: ctx.String(universeHostName),
 		SyncTargets:  targets,
 	})
@@ -574,6 +590,7 @@ var universeFederationCommand = cli.Command{
 		universeFederationListCommand,
 		universeFederationAddCommand,
 		universeFederationDelCommand,
+		universeFederationConfigCommand,
 	},
 }
 
@@ -591,7 +608,7 @@ func universeFederationList(ctx *cli.Context) error {
 	defer cleanUp()
 
 	servers, err := client.ListFederationServers(
-		ctxc, &universerpc.ListFederationServersRequest{},
+		ctxc, &unirpc.ListFederationServersRequest{},
 	)
 	if err != nil {
 		return err
@@ -630,8 +647,8 @@ func universeFederationAdd(ctx *cli.Context) error {
 	defer cleanUp()
 
 	resp, err := client.AddFederationServer(
-		ctxc, &universerpc.AddFederationServerRequest{
-			Servers: []*universerpc.UniverseFederationServer{
+		ctxc, &unirpc.AddFederationServerRequest{
+			Servers: []*unirpc.UniverseFederationServer{
 				{
 					Host: ctx.String(universeHostName),
 				},
@@ -681,8 +698,8 @@ func universeFederationDel(ctx *cli.Context) error {
 	defer cleanUp()
 
 	resp, err := client.DeleteFederationServer(
-		ctxc, &universerpc.DeleteFederationServerRequest{
-			Servers: []*universerpc.UniverseFederationServer{
+		ctxc, &unirpc.DeleteFederationServerRequest{
+			Servers: []*unirpc.UniverseFederationServer{
 				{
 					Id:   int32(ctx.Int(universeServerID)),
 					Host: ctx.String(universeHostName),
@@ -690,6 +707,218 @@ func universeFederationDel(ctx *cli.Context) error {
 			},
 		},
 	)
+	if err != nil {
+		return err
+	}
+
+	printRespJSON(resp)
+	return nil
+}
+
+var universeFederationConfigCommand = cli.Command{
+	Name:      "config",
+	ShortName: "c",
+	Usage:     "Change the sync behavior of the local Universe",
+	Description: `
+	Manage the sync behavior of the local Universe. These settings are
+	defined by the proof type (issuance or transfer), the sync behavior
+	(insert from remote Universe or export to remote Universe), and the
+	scope (all assets or specific assets).
+        `,
+	Subcommands: []cli.Command{
+		universeFederationGlobalConfig,
+		universeFederationLocalConfig,
+	},
+}
+
+var (
+	proofInsertName        = "insert"
+	proofExportName        = "export"
+	universeSyncConfigArgs = []cli.Flag{
+		cli.StringFlag{
+			Name:  proofTypeName,
+			Usage: "the type of proof",
+		},
+		cli.StringFlag{
+			Name: proofInsertName,
+			Usage: "if true, remote Universes can push proofs to" +
+				"the local Universe",
+		},
+		cli.StringFlag{
+			Name: proofExportName,
+			Usage: "if true, remote Universes can pull proofs from" +
+				"the local Universe",
+		},
+	}
+)
+
+func parseConfigArgs(ctx *cli.Context,
+	isGlobal bool) (*unirpc.GlobalFederationSyncConfig,
+	*unirpc.AssetFederationSyncConfig, error) {
+
+	var (
+		insertOpt *bool
+		exportOpt *bool
+		err       error
+	)
+
+	// The cli.BoolFlag works for variables that are false by default,
+	// but here we don't want a default for these values.
+	isValidBool := func(arg string) (bool, error) {
+		switch arg {
+		case "true":
+			return true, nil
+		case "false":
+			return false, nil
+		default:
+			return false, fmt.Errorf("invalid bool flag")
+		}
+	}
+
+	if !ctx.IsSet(proofInsertName) && !ctx.IsSet(proofExportName) {
+		return nil, nil, fmt.Errorf("either insert or export must be" +
+			"set")
+	}
+
+	// The insert and export flags are not mutually exclusive.
+	if ctx.IsSet(proofInsertName) {
+		*insertOpt, err = isValidBool(ctx.String(proofInsertName))
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid proof insert flag")
+		}
+	}
+
+	if ctx.IsSet(proofExportName) {
+		*exportOpt, err = isValidBool(ctx.String(proofExportName))
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid proof export flag")
+		}
+	}
+
+	if isGlobal {
+		rpcProofType, err := parseProofType(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		globalConfig := &unirpc.GlobalFederationSyncConfig{
+			ProofType: *rpcProofType,
+		}
+
+		if ctx.IsSet(proofInsertName) {
+			globalConfig.AllowSyncInsert = *insertOpt
+		}
+		if ctx.IsSet(proofExportName) {
+			globalConfig.AllowSyncExport = *exportOpt
+		}
+
+		return globalConfig, nil, nil
+	}
+
+	universeID, err := parseUniverseID(ctx, true)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if universeID == nil {
+		return nil, nil, fmt.Errorf("invalid universe ID")
+	}
+
+	localConfig := &unirpc.AssetFederationSyncConfig{
+		Id: universeID,
+	}
+
+	if ctx.IsSet(proofInsertName) {
+		localConfig.AllowSyncInsert = *insertOpt
+	}
+
+	if ctx.IsSet(proofExportName) {
+		localConfig.AllowSyncExport = *exportOpt
+	}
+
+	return nil, localConfig, nil
+}
+
+var universeFederationGlobalConfig = cli.Command{
+	Name:      "global",
+	ShortName: "g",
+	Usage:     "Change the global sync behavior of the local Universe",
+	Description: `
+	Manage the sync behavior of the local Universe that will apply to all
+	assets by default. Per-asset sync behavior will override global
+	settings. These settings are defined by the proof type (issuance or
+	transfer) and the sync behavior (insert from remote Universe or export
+	to remote Universe).
+        `,
+	Flags:  universeSyncConfigArgs,
+	Action: universeFederationUpdateGlobalConfig,
+}
+
+func universeFederationUpdateGlobalConfig(ctx *cli.Context) error {
+	ctxc := getContext()
+	client, cleanUp := getUniverseClient(ctx)
+	defer cleanUp()
+
+	globalConfig, _, err := parseConfigArgs(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	configReq := &unirpc.SetFederationSyncConfigRequest{
+		GlobalSyncConfigs: []*unirpc.GlobalFederationSyncConfig{
+			globalConfig,
+		},
+	}
+
+	resp, err := client.SetFederationSyncConfig(ctxc, configReq)
+	if err != nil {
+		return err
+	}
+
+	printRespJSON(resp)
+	return nil
+}
+
+var universeFederationLocalConfig = cli.Command{
+	Name:      "local",
+	ShortName: "l",
+	Usage: "Change the sync behavior of the local Universe for a " +
+		"specific asset",
+	Description: `
+	Manage the sync behavior of the local Universe for a specific asset.
+	Local settings will override global settings. These settings are
+	defined by the proof type (issuance or transfer) and the sync behavior
+	(insert from remote Universe or export to remote Universe).
+        `,
+	Flags: append(universeSyncConfigArgs,
+		cli.StringFlag{
+			Name:  assetIDName,
+			Usage: "the asset ID of the universe to configure",
+		},
+		cli.StringFlag{
+			Name:  groupKeyName,
+			Usage: "the group key of the universe to configure",
+		}),
+	Action: universeFederationUpdateLocalConfig,
+}
+
+func universeFederationUpdateLocalConfig(ctx *cli.Context) error {
+	ctxc := getContext()
+	client, cleanUp := getUniverseClient(ctx)
+	defer cleanUp()
+
+	_, localConfig, err := parseConfigArgs(ctx, false)
+	if err != nil {
+		return err
+	}
+
+	configReq := &unirpc.SetFederationSyncConfigRequest{
+		AssetSyncConfigs: []*unirpc.AssetFederationSyncConfig{
+			localConfig,
+		},
+	}
+
+	resp, err := client.SetFederationSyncConfig(ctxc, configReq)
 	if err != nil {
 		return err
 	}
@@ -713,7 +942,7 @@ func universeInfo(ctx *cli.Context) error {
 	client, cleanUp := getUniverseClient(ctx)
 	defer cleanUp()
 
-	resp, err := client.Info(ctxc, &universerpc.InfoRequest{})
+	resp, err := client.Info(ctxc, &unirpc.InfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -743,7 +972,7 @@ func universeStatsSummaryCommand(ctx *cli.Context) error {
 	client, cleanUp := getUniverseClient(ctx)
 	defer cleanUp()
 
-	resp, err := client.UniverseStats(ctxc, &universerpc.StatsRequest{})
+	resp, err := client.UniverseStats(ctxc, &unirpc.StatsRequest{})
 	if err != nil {
 		return err
 	}
@@ -830,10 +1059,10 @@ func universeStatsQueryCommand(ctx *cli.Context) error {
 		}
 	}
 
-	resp, err := client.QueryAssetStats(ctxc, &universerpc.AssetStatsQuery{
+	resp, err := client.QueryAssetStats(ctxc, &unirpc.AssetStatsQuery{
 		AssetNameFilter: ctx.String(assetName),
 		AssetIdFilter:   assetID,
-		AssetTypeFilter: func() universerpc.AssetTypeFilter {
+		AssetTypeFilter: func() unirpc.AssetTypeFilter {
 			switch {
 			case ctx.String(assetTypeName) == "normal":
 				return unirpc.AssetTypeFilter_FILTER_ASSET_NORMAL
@@ -901,7 +1130,7 @@ func universeEventStatsQueryCommand(ctx *cli.Context) error {
 	client, cleanUp := getUniverseClient(ctx)
 	defer cleanUp()
 
-	resp, err := client.QueryEvents(ctxc, &universerpc.QueryEventsRequest{
+	resp, err := client.QueryEvents(ctxc, &unirpc.QueryEventsRequest{
 		StartTimestamp: ctx.Int64(startTime),
 		EndTimestamp:   ctx.Int64(endTime),
 	})
